@@ -1,0 +1,4 @@
+OpenIntelWireless/itlwm v2.3.0
+Commit: 4ac4c79bc7e34f8764038fc382630a29eb46213d
+https://github.com/OpenIntelWireless/itlwm/tree/4ac4c79bc7e34f8764038fc382630a29eb46213d/include/Airport
+Headers preserved with their original license notices. Test reference only.

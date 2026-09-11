@@ -1,0 +1,106 @@
+name: Release Feixiao
+
+on:
+  workflow_dispatch:
+    inputs:
+      changelog:
+        description: Change log; use \n for line breaks
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Feixiao
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          submodules: recursive
+          path: Feixiao
+
+      - name: Clone rtw88-stable
+        run: git clone --depth 1 https://github.com/thegwchr/rtw88-stable.git
+
+      - name: Download firmware blobs
+        run: |
+          cd Feixiao/firmware
+          for fw in rtw8822b_fw.bin rtw8822c_fw.bin rtw8821c_fw.bin \
+                     rtw8821a_fw.bin rtw8812a_fw.bin rtw8814a_fw.bin; do
+            if [ ! -s "$fw" ]; then
+              curl -sLO "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtw88/$fw"
+            fi
+          done
+
+      - name: Increment version
+        id: version
+        run: |
+          cd Feixiao
+          python3 << 'EOF' >> $GITHUB_OUTPUT
+          import re, sys
+          with open('rtw88.kext/Contents/Info.plist', 'r') as f:
+              text = f.read()
+          m = re.search(r'<key>CFBundleVersion</key>\s*<string>([0-9.]+)</string>', text)
+          if not m: sys.exit(1)
+          old = m.group(1)
+          parts = old.split('.')
+          new = f'{parts[0]}.{parts[1]}.{int(parts[2]) + 1}'
+          text = re.sub(r'(<key>CFBundleVersion</key>\s*<string>)[0-9.]+(</string>)',  fr'\g<1>{new}\g<2>', text)
+          text = re.sub(r'(<key>CFBundleShortVersionString</key>\s*<string>)[0-9.]+(</string>)', fr'\g<1>{new}\g<2>', text)
+          text = re.sub(r'(<key>OSBundleCompatibleVersion</key>\s*<string>)[0-9.]+(</string>)', fr'\g<1>{new}\g<2>', text)
+          with open('rtw88.kext/Contents/Info.plist', 'w') as f:
+              f.write(text)
+          print(f'old={old}')
+          print(f'new={new}')
+          EOF
+
+      - name: Commit, tag, and push
+        run: |
+          cd Feixiao
+          git config user.name "Feixiao CI"
+          git config user.email "ci@feixiao.local"
+          git add rtw88.kext/Contents/Info.plist
+          git commit -m "release: v${{ steps.version.outputs.new }}"
+          git tag "v${{ steps.version.outputs.new }}"
+          git push
+          git push origin "v${{ steps.version.outputs.new }}"
+
+      - name: Build kext and ctl
+        run: make all
+        working-directory: Feixiao
+
+      - name: Get kext UUID
+        id: ids
+        run: |
+          echo "uuid=$(dwarfdump --uuid Feixiao/build/out/rtw88.kext/Contents/MacOS/rtw88 | awk '{print $2}')" >> $GITHUB_OUTPUT
+
+      - name: Create release zip
+        id: zip
+        run: |
+          cd Feixiao/build/out
+          zipname="Feixiao_v${{ steps.version.outputs.new }}_${{ steps.ids.outputs.uuid }}.zip"
+          zip -r "${{ runner.temp }}/$zipname" rtw88.kext rtw88ctl
+          echo "zipname=$zipname" >> $GITHUB_OUTPUT
+
+      - name: Prepare release notes
+        env:
+          CHANGELOG: ${{ inputs.changelog }}
+        run: |
+          python3 << 'EOF'
+          import os
+          from pathlib import Path
+
+          changelog = os.environ["CHANGELOG"].replace("\\n", "\n")
+          Path(os.environ["RUNNER_TEMP"], "release-notes.md").write_text(changelog + "\n")
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.new }}
+          name: Feixiao v${{ steps.version.outputs.new }}
+          body_path: ${{ runner.temp }}/release-notes.md
+          files: ${{ runner.temp }}/${{ steps.zip.outputs.zipname }}

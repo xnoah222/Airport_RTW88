@@ -1,0 +1,15 @@
+Place Realtek firmware blobs here before building the kext bundle.
+These are NOT included in the repo (licensing). Obtain from:
+  linux-firmware (https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git)
+  path: rtw88/
+
+Files needed (copy all that apply to your chip):
+  rtw8822b_fw.bin   — RTL8822BE / RTL8822BU
+  rtw8822c_fw.bin   — RTL8822CE / RTL8822CU
+  rtw8821c_fw.bin   — RTL8821CE / RTL8821CU
+  rtw8812a_fw.bin   — RTL8812AE / RTL8812AU
+  rtw8814a_fw.bin   — RTL8814AE / RTL8814AU
+  rtw8821a_fw.bin   — RTL8821AU
+
+The Makefile copies them into build/out/rtw88.kext/Contents/Resources/
+during the kext assembly step.

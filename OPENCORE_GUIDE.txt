@@ -1,0 +1,196 @@
+rtw88 macOS — OpenCore Injection & Usage Guide
+===============================================
+
+SUPPORTED CHIPS
+---------------
+PCIe (hackintosh priority):
+  RTL8822BE  0x10EC:0xB822  (dual-band AC, 2x2)
+  RTL8822CE  0x10EC:0xC822  (dual-band AC, 2x2) ← most common
+  RTL8821CE  0x10EC:0xC821  (dual-band AC, 1x1)
+  RTL8812AE  0x10EC:0x8812  (dual-band AC, 2x2)
+  RTL8814AE  0x10EC:0x8813  (dual-band AC, 4x4)
+
+USB:
+  RTL8821AU  0x0BDA:0x8300
+  RTL8822BU  0x0BDA:0xB812
+  RTL8822CU  0x0BDA:0xC812
+  RTL8812AU  0x0BDA:0x8812
+
+FIRMWARE FILES
+--------------
+The driver loads firmware from:
+  /Library/Extensions/rtw88.kext/Contents/Resources/<name>
+
+Required firmware files (from linux-firmware package):
+  rtw8822b_fw.bin
+  rtw8822c_fw.bin
+  rtw8821c_fw.bin
+  rtw8812a_fw.bin
+  rtw8814a_fw.bin
+  rtw8821a_fw.bin
+
+Fetch from: https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git
+  rtw88/rtw8822b_fw.bin
+  rtw88/rtw8822c_fw.bin
+  etc.
+
+Copy into rtw88.kext/Contents/Resources/ before building.
+
+BUILD
+-----
+Requirements: Xcode Command Line Tools, macOS 11+ SDK
+
+  cd /Users/macbook_01/projs/rtw88-macos
+  make
+
+This builds:
+  rtw88.kext/Contents/MacOS/rtw88   — the kext binary
+  build/rtw88ctl                    — the control binary
+
+
+OPENCORE INJECTION (recommended for hackintosh)
+-----------------------------------------------
+1. Build the kext:
+     make
+
+2. Copy rtw88.kext to your OpenCore EFI:
+     cp -R rtw88.kext /Volumes/EFI/OC/Kexts/
+
+3. Add to config.plist → Kernel → Add:
+
+   <dict>
+     <key>Arch</key>       <string>Any</string>
+     <key>BundlePath</key> <string>rtw88.kext</string>
+     <key>Comment</key>    <string>Realtek rtw88 WiFi</string>
+     <key>Enabled</key>    <true/>
+     <key>ExecutablePath</key> <string>Contents/MacOS/rtw88</string>
+     <key>MaxKernel</key>  <string></string>
+     <key>MinKernel</key>  <string>20.0.0</string>
+     <key>PlistPath</key>  <string>Contents/Info.plist</string>
+   </dict>
+
+4. Optional: add Lilu.kext first for better compatibility.
+
+5. Rebuild OC cache:
+     sudo kextcache -i /   (macOS 11 and earlier)
+     (macOS 12+ cache is rebuilt automatically on next boot)
+
+6. Reboot.
+
+
+MANUAL LOAD (development / testing)
+------------------------------------
+  make install   # copies to /Library/Extensions, sets permissions
+  make load      # kextutil (requires SIP partially disabled)
+
+  Or if SIP is fully disabled:
+    sudo kextload /Library/Extensions/rtw88.kext
+
+
+BASE SYSTEM / RECOVERY ENVIRONMENT
+------------------------------------
+Because OpenCore injects kexts before the OS loads, rtw88 works in:
+  - Full macOS
+  - BaseSystem (Recovery partition)
+  - Internet Recovery (if Ethernet/USB-Ethernet is available for initial load)
+
+To use rtw88ctl in Recovery:
+  1. Build rtw88ctl on a normal macOS installation.
+  2. Copy the binary to a USB drive.
+  3. In Terminal (Recovery): /Volumes/USB/rtw88ctl scan
+
+
+USAGE: rtw88ctl
+---------------
+  rtw88ctl scan [-w <seconds>]     Scan for networks (default 5s)
+  rtw88ctl list                    Show scan results
+  rtw88ctl connect "SSID" "pass"   Connect (WPA2-Personal)
+  rtw88ctl connect "SSID"          Connect (open network)
+  rtw88ctl disconnect              Disconnect
+  rtw88ctl status                  Show state, BSSID, RSSI
+  rtw88ctl log                     Driver log buffer
+  rtw88ctl debug <0-3>             Set verbosity (0=err … 3=debug)
+
+Example workflow:
+  sudo rtw88ctl scan -w 8
+  sudo rtw88ctl list
+  sudo rtw88ctl connect "MyHomeWifi" "mypassword"
+  sudo rtw88ctl status
+
+
+ARCHITECTURE OVERVIEW
+---------------------
+  rtw88.kext/
+  ├── RTW88PCIDevice   (IOEthernetController — PCIe)
+  │   └── RTW88IEEE80211   (802.11 state machine)
+  │       └── rtw88 driver core (Linux C code via compat layer)
+  ├── RTW88USBDevice   (IOEthernetController — USB)
+  │   └── RTW88IEEE80211   (shared)
+  └── RTW88UserClient  (IOUserClient ← rtw88ctl IPC)
+
+  Linux compat layer (src/compat/):
+    linux/types.h         — u8/u16/u32/u64, list_head, etc.
+    linux/bitops.h        — BIT(), GENMASK(), set_bit()
+    linux/spinlock.h      — pthread_spinlock shim
+    linux/workqueue.h     — pthread thread pool
+    linux/timer.h         — pthread timer thread
+    linux/skbuff.h        — sk_buff → malloc buffer
+    linux/pci.h           — IOPCIDevice ops
+    linux/firmware.h      — loads from kext Resources/
+    linux/dma-mapping.h   — IOBufferMemoryDescriptor
+    net/mac80211.h        — mac80211 API shim (full)
+
+  The Linux driver C files (main.c, pci.c, phy.c, mac.c, fw.c, tx.c,
+  rx.c, etc.) are compiled AS-IS from the rtw88-stable source using
+  the compat headers as drop-in replacements.  Only mac80211.c has its
+  ops intercepted by RTW88IEEE80211 instead of registered with Linux.
+
+
+SECURITY / SIGNING
+-------------------
+For production use, the kext must be signed with an Apple Developer ID
+(Kernel Extension) certificate.
+
+  codesign --sign "Developer ID Application: Your Name (TEAMID)" \
+           --entitlements entitlements.plist \
+           --deep rtw88.kext
+
+  spctl --assess --type kext rtw88.kext
+
+For OpenCore/hackintosh, SecureBootModel = Disabled in config.plist
+bypasses kext signature requirements (already typical for hackintosh).
+
+
+KNOWN LIMITATIONS / TODO
+--------------------------
+1. WPA3-SAE not implemented (WPA2-CCMP fully supported).
+2. 802.11r/802.11k roaming not yet implemented.
+3. USB TX aggregation path needs tuning for throughput.
+4. MU-MIMO beamforming disabled by default (enable via driver flag).
+5. SDIO interface is stubbed (low priority for hackintosh).
+6. Power management / sleep-wake cycle needs field testing.
+7. The 4-way EAPOL MIC computation stub must be completed with HMAC-SHA1
+   (or OpenSSL) for WPA2 to fully authenticate on real hardware.
+8. Driver signing: required for SIP-enabled macOS without OpenCore.
+
+
+AIRPORT NATIVE TARGET — AirPort_RTW88 1.0.0
+------------------------------------------------
+Build:
+  make clean
+  make airport
+
+Output:
+  build/out/AirPort_RTW88.kext
+
+OpenCore Kernel -> Add:
+  BundlePath:     AirPort_RTW88.kext
+  ExecutablePath: Contents/MacOS/AirPort_RTW88
+  PlistPath:      Contents/Info.plist
+
+Do NOT load the old AirportRTW88.kext at the same time. The internal IOClass
+remains AirportRTW88 and the bundle ID remains com.rtw88.airport intentionally.
+
+First AWDL check after boot:
+  ifconfig | grep -A8 -E '^awdl|^llw|^p2p'
+  sudo dmesg | grep -E 'AirPort_RTW88: (createVirtualInterface|enableVirtualInterface|VIF IOCTL|VIF bpfOutput|AWDL)' | tail -300

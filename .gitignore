@@ -1,0 +1,30 @@
+# Build products
+build/
+DerivedData/
+
+# Compiled kexts
+*.kext/
+
+# macOS
+.DS_Store
+
+# Xcode user data
+xcuserdata/
+*.xcuserstate
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+
+# Experimental / development patches
+AirPort_RTW88-1.0.0-AWDL.patch
+AirPort_RTW88-1.0.0-AirportItlwm-AWDL.patch
+AWDL_1.0.0_NOTES.md
+
+# Internal development material
+AIRPORTITLWM_AUDIT_0.4.0.md
+AirPort_RTW88-1.0.0-Location.patch
+AirPort_RTW88-1.0.0.patch

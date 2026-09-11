@@ -1,0 +1,53 @@
+name: Build Feixiao
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Feixiao
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          path: Feixiao
+
+      - name: Clone rtw88-stable
+        run: git clone --depth 1 https://github.com/thegwchr/rtw88-stable.git
+
+      - name: Download firmware blobs
+        run: |
+          cd Feixiao/firmware
+          for fw in rtw8822b_fw.bin rtw8822c_fw.bin rtw8821c_fw.bin \
+                     rtw8821a_fw.bin rtw8812a_fw.bin rtw8814a_fw.bin; do
+            if [ ! -s "$fw" ]; then
+              curl -sLO "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtw88/$fw"
+            fi
+          done
+          ls -lh *.bin
+
+      - name: Build kext and ctl
+        run: make all
+        working-directory: Feixiao
+
+      - name: Get git hash and kext UUID
+        id: ids
+        run: |
+          echo "hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "uuid=$(dwarfdump --uuid Feixiao/build/out/rtw88.kext/Contents/MacOS/rtw88 | awk '{print $2}')" >> $GITHUB_OUTPUT
+
+      - name: Create artifact zip
+        run: |
+          cd Feixiao/build/out
+          zip -r "${{ runner.temp }}/Feixiao_${{ steps.ids.outputs.hash }}_${{ steps.ids.outputs.uuid }}.zip" rtw88.kext rtw88ctl
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Feixiao_${{ steps.ids.outputs.hash }}_${{ steps.ids.outputs.uuid }}
+          path: ${{ runner.temp }}/Feixiao_${{ steps.ids.outputs.hash }}_${{ steps.ids.outputs.uuid }}.zip

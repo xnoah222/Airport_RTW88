@@ -1,0 +1,320 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		/* kext wrapper — listed for IDE indexing; built by Run Script phase */
+		AA000101 /* kmod_info.c */          = {isa = PBXBuildFile; fileRef = AA100101 /* kmod_info.c */; };
+		AA000110 /* RTW88Kext.cpp */        = {isa = PBXBuildFile; fileRef = AA100110 /* RTW88Kext.cpp */; };
+		AA000112 /* RTW88PCIDevice.cpp */   = {isa = PBXBuildFile; fileRef = AA100112 /* RTW88PCIDevice.cpp */; };
+		AA000114 /* RTW88IEEE80211.cpp */   = {isa = PBXBuildFile; fileRef = AA100114 /* RTW88IEEE80211.cpp */; };
+		AA000116 /* RTW88UserClient.cpp */  = {isa = PBXBuildFile; fileRef = AA100116 /* RTW88UserClient.cpp */; };
+		AA000118 /* RTW88USBDevice.cpp */   = {isa = PBXBuildFile; fileRef = AA100118 /* RTW88USBDevice.cpp */; };
+		AA000130 /* rtw88_compat.c */       = {isa = PBXBuildFile; fileRef = AA100130 /* rtw88_compat.c */; };
+		AA000140 /* main.c in ctl */        = {isa = PBXBuildFile; fileRef = AA100140 /* main.c */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		/* Supporting */
+		AA100001 /* Info.plist */           = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "rtw88.kext/Contents/Info.plist"; sourceTree = "<group>"; };
+		AA100002 /* Makefile */             = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
+		AA100003 /* README */               = {isa = PBXFileReference; lastKnownFileType = text; path = "firmware/README"; sourceTree = "<group>"; };
+		/* kext C */
+		AA100101 /* kmod_info.c */          = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "src/kext/kmod_info.c"; sourceTree = "<group>"; };
+		/* kext C++ */
+		AA100110 /* RTW88Kext.cpp */        = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "src/kext/RTW88Kext.cpp"; sourceTree = "<group>"; };
+		AA100111 /* RTW88Kext.hpp */        = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "src/kext/RTW88Kext.hpp"; sourceTree = "<group>"; };
+		AA100112 /* RTW88PCIDevice.cpp */   = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "src/kext/RTW88PCIDevice.cpp"; sourceTree = "<group>"; };
+		AA100113 /* RTW88PCIDevice.hpp */   = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "src/kext/RTW88PCIDevice.hpp"; sourceTree = "<group>"; };
+		AA100114 /* RTW88IEEE80211.cpp */   = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "src/kext/RTW88IEEE80211.cpp"; sourceTree = "<group>"; };
+		AA100115 /* RTW88IEEE80211.hpp */   = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "src/kext/RTW88IEEE80211.hpp"; sourceTree = "<group>"; };
+		AA100116 /* RTW88UserClient.cpp */  = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "src/kext/RTW88UserClient.cpp"; sourceTree = "<group>"; };
+		AA100117 /* RTW88UserClient.hpp */  = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "src/kext/RTW88UserClient.hpp"; sourceTree = "<group>"; };
+		AA100118 /* RTW88USBDevice.cpp */   = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "src/kext/RTW88USBDevice.cpp"; sourceTree = "<group>"; };
+		AA100119 /* RTW88USBDevice.hpp */   = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "src/kext/RTW88USBDevice.hpp"; sourceTree = "<group>"; };
+		/* Compat */
+		AA100130 /* rtw88_compat.c */       = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "src/compat/rtw88_compat.c"; sourceTree = "<group>"; };
+		AA100131 /* rtw88_compat.h */       = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "src/compat/rtw88_compat.h"; sourceTree = "<group>"; };
+		AA100132 /* iokit_shim.h */         = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "src/compat/iokit_shim.h"; sourceTree = "<group>"; };
+		/* ctl */
+		AA100140 /* main.c */               = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "ctl/main.c"; sourceTree = "<group>"; };
+		/* Product */
+		AA100200 /* rtw88.kext */           = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = "build/out/rtw88.kext"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		/* Root group */
+		AA200000 = {
+			isa = PBXGroup;
+			children = (
+				AA200010 /* Kext */,
+				AA200020 /* Compat */,
+				AA200030 /* ctl */,
+				AA200040 /* Supporting Files */,
+				AA200050 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+
+		AA200010 /* Kext */ = {
+			isa = PBXGroup;
+			children = (
+				AA100101 /* kmod_info.c */,
+				AA100110 /* RTW88Kext.cpp */,
+				AA100111 /* RTW88Kext.hpp */,
+				AA100112 /* RTW88PCIDevice.cpp */,
+				AA100113 /* RTW88PCIDevice.hpp */,
+				AA100114 /* RTW88IEEE80211.cpp */,
+				AA100115 /* RTW88IEEE80211.hpp */,
+				AA100116 /* RTW88UserClient.cpp */,
+				AA100117 /* RTW88UserClient.hpp */,
+				AA100118 /* RTW88USBDevice.cpp */,
+				AA100119 /* RTW88USBDevice.hpp */,
+			);
+			name = Kext;
+			sourceTree = "<group>";
+		};
+
+		AA200020 /* Compat */ = {
+			isa = PBXGroup;
+			children = (
+				AA100130 /* rtw88_compat.c */,
+				AA100131 /* rtw88_compat.h */,
+				AA100132 /* iokit_shim.h */,
+			);
+			name = Compat;
+			sourceTree = "<group>";
+		};
+
+		AA200030 /* ctl */ = {
+			isa = PBXGroup;
+			children = (
+				AA100140 /* main.c */,
+			);
+			name = ctl;
+			sourceTree = "<group>";
+		};
+
+		AA200040 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				AA100001 /* Info.plist */,
+				AA100002 /* Makefile */,
+				AA100003 /* firmware/README */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+
+		AA200050 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AA100200 /* rtw88.kext */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AA300000 /* rtw88 */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA400010 /* Build configuration list for PBXNativeTarget "rtw88" */;
+			buildPhases = (
+				AA500000 /* Run Script: make kext */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = rtw88;
+			productName = rtw88;
+			productReference = AA100200 /* rtw88.kext */;
+			productType = "com.apple.product-type.kernel-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AA600000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = NO;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					AA300000 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = AA400000 /* Build configuration list for PBXProject "rtw88" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AA200000;
+			productRefGroup = AA200050 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AA300000 /* rtw88 */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AA500000 /* Run Script: make kext */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Run Script: make kext";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/build/out/rtw88.kext/Contents/MacOS/rtw88",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\ncd \"$SRCROOT\"\nmake kext\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		/* Project-level Debug */
+		AA400001 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = NO;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		/* Project-level Release */
+		AA400002 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = NO;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_OPTIMIZATION_LEVEL = s;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		/* Target-level Debug */
+		AA400011 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGNING_ALLOWED = NO;
+				EXECUTABLE_EXTENSION = kext;
+				EXECUTABLE_PREFIX = "";
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_ENABLE_KERNEL_DEVELOPMENT = YES;
+				INFOPLIST_FILE = "rtw88.kext/Contents/Info.plist";
+				KERNEL_EXTENSION_HEADER_SEARCH_PATHS = "$(SRCROOT)/MacKernelSDK/Headers";
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MODULE_IDENTIFIER = com.rtw88.driver;
+				MODULE_NAME = rtw88;
+				MODULE_START = _rtw88_start;
+				MODULE_STOP = _rtw88_stop;
+				MODULE_VERSION = "1.0.0";
+				OTHER_CFLAGS = "";
+				OTHER_CPLUSPLUSFLAGS = "";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rtw88.driver;
+				PRODUCT_NAME = rtw88;
+				SKIP_INSTALL = YES;
+				WRAPPER_EXTENSION = kext;
+			};
+			name = Debug;
+		};
+		/* Target-level Release */
+		AA400012 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGNING_ALLOWED = NO;
+				EXECUTABLE_EXTENSION = kext;
+				EXECUTABLE_PREFIX = "";
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_ENABLE_KERNEL_DEVELOPMENT = YES;
+				INFOPLIST_FILE = "rtw88.kext/Contents/Info.plist";
+				KERNEL_EXTENSION_HEADER_SEARCH_PATHS = "$(SRCROOT)/MacKernelSDK/Headers";
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MODULE_IDENTIFIER = com.rtw88.driver;
+				MODULE_NAME = rtw88;
+				MODULE_START = _rtw88_start;
+				MODULE_STOP = _rtw88_stop;
+				MODULE_VERSION = "1.0.0";
+				OTHER_CFLAGS = "";
+				OTHER_CPLUSPLUSFLAGS = "";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rtw88.driver;
+				PRODUCT_NAME = rtw88;
+				SKIP_INSTALL = YES;
+				WRAPPER_EXTENSION = kext;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA400000 /* Build configuration list for PBXProject "rtw88" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA400001 /* Debug */,
+				AA400002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA400010 /* Build configuration list for PBXNativeTarget "rtw88" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA400011 /* Debug */,
+				AA400012 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = AA600000 /* Project object */;
+}
