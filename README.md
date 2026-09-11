@@ -1,125 +1,194 @@
-# Feixiao
+# AirPort_RTW88
 
-Feixiao is a macOS kernel extension that ports the Linux `rtw88` driver, bringing support for Realtek PCIe Wi-Fi cards to macOS.
+AirPort_RTW88 is a native macOS AirPort Wi-Fi driver for Realtek RTL88xx PCIe wireless adapters.
+
+It ports the Linux `rtw88` driver to macOS and integrates it with Apple's native AirPort/IO80211 Wi-Fi stack, allowing supported Realtek adapters to appear and operate through the built-in macOS Wi-Fi interface.
+
+AirPort_RTW88 uses the Linux `rtw88` driver as its hardware backend, with macOS integration inspired by and adapted from OpenIntelWireless `itlwm` / `AirportItlwm`.
+
+## Current Status
+
+AirPort_RTW88 1.0.0 provides functional native Wi-Fi connectivity through macOS AirPort.
+
+Currently working:
+
+- Native AirPort/IO80211 interface
+- Wi-Fi network scanning
+- 2.4 GHz networks
+- 5 GHz networks
+- Association and connection through the native macOS Wi-Fi interface
+- Open networks
+- WPA/WPA2 networks
+- Native Apple RSN/EAPOL key-management integration
+- Normal IP network traffic after association
+
+### Not Currently Supported
+
+- AWDL
+- AirDrop and other features that depend on AWDL
+- USB Realtek Wi-Fi adapters
+- SDIO Realtek Wi-Fi adapters
+
+AWDL support is planned for a future release.
 
 ## Supported Hardware
 
-Feixiao aims to support the following Realtek chipsets:
-- RTL8822BE
-- RTL8822CE
-- RTL8821CE
-- RTL8812AE
-- RTL8814AE
+### Tested Hardware
 
-*Note: USB and SDIO variants are unsupported, and are not planned to be supported.*
+- **RTL8822BE** — tested and confirmed working
 
-## Features
+### Theoretically Supported Hardware
 
-- Native scanning of 2.4GHz and 5GHz bands.
-- Connection to Open and WPA/WPA2 (incl. mixed modes) (CCMP/PSK/TKIP/AES/TKIP+AES) networks.
-- Custom `rtw88ctl` command-line utility to control the driver, with possibility to use [Starskiff](https://github.com/thegwchr/Starskiff) as GUI alternative
+The following RTL88xx PCIe chipsets are supported by the underlying `rtw88` implementation and their required firmware files are included with AirPort_RTW88:
 
-## Build Instructions
+- **RTL8822CE**
+- **RTL8821CE**
+- **RTL8812AE**
+- **RTL8814AE**
 
-To build Feixiao from source, you will need the rtw88 driver from Linux kernel source, Xcode Command Line Tools and the macOS Kernel SDK.
+These chipsets have not yet been physically tested with AirPort_RTW88. However, they are expected to work due to their existing `rtw88` support and included firmware.
+
+If you own one of these adapters, testing and feedback are welcome.
+
+> **Note:** USB and SDIO variants are not supported and are not currently planned to be supported.
+
+## Building
+
+AirPort_RTW88 requires:
+
+- Xcode Command Line Tools
+- MacKernelSDK
+- Linux `rtw88` source
+
+Clone the repository and its submodules:
 
 ```sh
-# Clone the repository
-git clone https://github.com/thegwchr/Feixiao.git
-cd Feixiao
-git submodule update --recursive
+git clone --recursive https://github.com/xnoah222/Airport_RTW88.git
+cd Airport_RTW88
 ```
 
-Before building Feixiao, clone the Linux `rtw88` driver source from thegwchr/rtw88-stable:
+If the repository was cloned without `--recursive`:
 
 ```sh
+git submodule update --init --recursive
+```
+
+AirPort_RTW88 currently expects the Linux `rtw88` source tree to be located next to the repository.
+
+Clone `rtw88-stable`:
+
+```sh
+cd ..
 git clone https://github.com/thegwchr/rtw88-stable.git
 ```
 
-Directory structure must be:
+The directory structure should look like:
 
-```
+```text
 parent/
-├── Feixiao/        # this repository
-└── rtw88-stable/   # Linux kernel tree root (driver at drivers/net/wireless/realtek/rtw88/)
+├── Airport_RTW88/
+└── rtw88-stable/
 ```
 
-If you name the clone differently, update `LINUX_SRC` in `Makefile` accordingly.
+The Linux driver source should therefore be available at:
 
-
-```sh
-# Build the kext and control utility
-make all
+```text
+../rtw88-stable/drivers/net/wireless/realtek/rtw88/
 ```
 
-The compiled kernel extension (`rtw88.kext`) and the command-line utility (`rtw88ctl`) will be generated in the `build/out/` directory.
+If you use a different location, update `LINUX_SRC` in the `Makefile`.
 
-
-## Native AirPort target — AirPort_RTW88 1.0.0
-
-The repository also contains the native IO80211 target used by macOS Wi-Fi UI:
+Build AirPort_RTW88 with:
 
 ```sh
 make airport
 ```
 
-Output:
+The resulting kernel extension is:
 
 ```text
 build/out/AirPort_RTW88.kext
 ```
 
-`AirPort_RTW88 1.0.0` keeps the proven internal C++ class names (`AirportRTW88*`) and bundle identifier (`com.rtw88.airport`) while changing the visible kext/executable name. This release adds the Ventura AWDL/P2P virtual-interface bridge, verified AWDL control IOCTLs, and raw 802.11 management/action-frame TX/RX plumbing. See `AWDL_1.0.0_NOTES.md` for the first-boot trace and current off-channel limitation.
+## Installation
 
-## Installation & Usage
+AirPort_RTW88 is intended primarily for use through OpenCore.
 
-1. **Load the Kext:**
-   To load it manually for testing:
-   ```sh
-   sudo chown -R root:wheel build/out/rtw88.kext
-   sudo kextload build/out/rtw88.kext
-   ```
-   *(You may be prompted to approve the extension in System Settings -> Privacy & Security. If you are using a Hackintosh, you can inject it via OpenCore).*
+Add:
 
-2. **Check Status:**
-   Use the built-in control utility to check if the driver successfully initialized your card:
-   ```sh
-   ./build/out/rtw88ctl status
-   ```
+```text
+AirPort_RTW88.kext
+```
 
-3. **Scan for Networks:**
-   ```sh
-   # Trigger a hardware scan
-   ./build/out/rtw88ctl scan
-   
-   # List the discovered access points
-   ./build/out/rtw88ctl list
-   ```
+to your OpenCore `EFI/OC/Kexts` directory and add the corresponding entry to `Kernel -> Add` in `config.plist`.
 
-4. **Connect to a Network:**
-   ```sh
-   ./build/out/rtw88ctl connect "Your_SSID" "Your_Password"
-   ```
+After rebooting, the Realtek adapter should be exposed to macOS through the native AirPort Wi-Fi interface if initialization succeeds.
+
+For development and debugging, the kext may also be loaded using the appropriate macOS kernel-extension development tools depending on the macOS version and system configuration.
 
 ## Troubleshooting
 
-You can view driver logs using `dmesg` if you're injecting it as pre-link (OpenCore):
-```sh
-dmesg | grep -i rtw88
-```
-
-or, if you're loading via `kextload/kmutil`:
+Driver messages can be inspected with:
 
 ```sh
-log stream --predicate 'process == "kernel" and (eventMessage contains "rtw88" or message contains "rtw88")' --info
+log show --last boot --predicate 'process == "kernel"' | grep -Ei 'rtw88|AirportRTW88'
 ```
 
-If you encounter kernel panics or connection failures, ensure you are using the latest commit and that your specific card's PCI ID is bound to the driver.
+For live debugging:
+
+```sh
+log stream --predicate 'process == "kernel"' --info | grep -Ei 'rtw88|AirportRTW88'
+```
+
+Useful messages include firmware loading, PCI initialization, scanning, association, EAPOL/RSN state and network-interface initialization.
+
+If the adapter is not detected, verify that:
+
+- AirPort_RTW88.kext is actually loaded
+- The PCI device is visible to macOS
+- The card uses a supported RTL88xx PCIe chipset
+- The required firmware is available
+- OpenCore is injecting the kext correctly
+
+## Project Structure
+
+AirPort_RTW88 consists of two main layers:
+
+- The ported Linux `rtw88` hardware/PHY/MAC implementation
+- The macOS AirPort/IO80211 integration layer
+
+The macOS layer exposes the Realtek hardware as a native Wi-Fi interface instead of presenting it as an Ethernet adapter.
+
+Some internal class names retain the `AirportRTW88` naming used during development.
+
+## Known Limitations
+
+AirPort_RTW88 1.0.0 is the first public release and should still be considered experimental software.
+
+AWDL/P2P functionality is not currently operational. As a result, services that depend on AWDL, such as AirDrop, are not supported in this release.
+
+Support for RTL88xx models other than the RTL8822BE is currently unverified due to lack of physical hardware testing.
 
 ## Acknowledgements
 
-- **Realtek** for the original Linux `rtw88` driver source code and WLAN card;
-- **Apple** for the OS;
-- **AcidAnthera** for MacKernelSDK;
-- **OpenIntelWireless** for itlwm as reference;
-- **FreeBSD** for LinuxKPI as reference on how Linux drivers get implemented in BSD.
+AirPort_RTW88 would not be possible without work from several open-source projects and communities:
+
+- **Linux rtw88 contributors** — for the original Realtek RTL88xx driver implementation
+- **OpenIntelWireless** — for `itlwm` and `AirportItlwm`, used as important references for macOS Wi-Fi and AirPort integration
+- **Acidanthera** — for MacKernelSDK
+- **Apple** — for macOS, IO80211 and the surrounding networking frameworks
+- **FreeBSD** — for LinuxKPI and its work adapting Linux driver concepts to BSD environments
+
+See `CREDITS.md` and the source files for additional attribution and licensing information.
+
+## Disclaimer
+
+AirPort_RTW88 is an independent open-source project and is not affiliated with or endorsed by Realtek, Apple, OpenIntelWireless, Acidanthera, or the Linux kernel project.
+
+Use at your own risk. Kernel extensions operate with high privileges and may cause system instability or kernel panics, particularly on unsupported hardware.
+
+## License
+
+AirPort_RTW88 contains and adapts code originating from multiple open-source projects.
+
+Licensing and copyright notices present in individual source files must be preserved. See `CREDITS.md` and the relevant source files for attribution and licensing details.
