@@ -185,6 +185,7 @@ bool rtw88_is_scanning(void);
 bool rtw88_hw_scan_supported(struct ieee80211_hw *hw);
 void rtw88_sw_scan_start(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 void rtw88_sw_scan_switch_channel(struct ieee80211_hw *hw);
+void rtw88_awdl_switch_channel(struct ieee80211_hw *hw);
 void rtw88_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 
 /*

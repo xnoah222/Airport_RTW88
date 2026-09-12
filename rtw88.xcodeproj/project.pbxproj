@@ -13,7 +13,6 @@
 		AA000112 /* RTW88PCIDevice.cpp */   = {isa = PBXBuildFile; fileRef = AA100112 /* RTW88PCIDevice.cpp */; };
 		AA000114 /* RTW88IEEE80211.cpp */   = {isa = PBXBuildFile; fileRef = AA100114 /* RTW88IEEE80211.cpp */; };
 		AA000116 /* RTW88UserClient.cpp */  = {isa = PBXBuildFile; fileRef = AA100116 /* RTW88UserClient.cpp */; };
-		AA000118 /* RTW88USBDevice.cpp */   = {isa = PBXBuildFile; fileRef = AA100118 /* RTW88USBDevice.cpp */; };
 		AA000130 /* rtw88_compat.c */       = {isa = PBXBuildFile; fileRef = AA100130 /* rtw88_compat.c */; };
 		AA000140 /* main.c in ctl */        = {isa = PBXBuildFile; fileRef = AA100140 /* main.c */; };
 /* End PBXBuildFile section */
@@ -34,8 +33,6 @@
 		AA100115 /* RTW88IEEE80211.hpp */   = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "src/kext/RTW88IEEE80211.hpp"; sourceTree = "<group>"; };
 		AA100116 /* RTW88UserClient.cpp */  = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "src/kext/RTW88UserClient.cpp"; sourceTree = "<group>"; };
 		AA100117 /* RTW88UserClient.hpp */  = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "src/kext/RTW88UserClient.hpp"; sourceTree = "<group>"; };
-		AA100118 /* RTW88USBDevice.cpp */   = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "src/kext/RTW88USBDevice.cpp"; sourceTree = "<group>"; };
-		AA100119 /* RTW88USBDevice.hpp */   = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "src/kext/RTW88USBDevice.hpp"; sourceTree = "<group>"; };
 		/* Compat */
 		AA100130 /* rtw88_compat.c */       = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "src/compat/rtw88_compat.c"; sourceTree = "<group>"; };
 		AA100131 /* rtw88_compat.h */       = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "src/compat/rtw88_compat.h"; sourceTree = "<group>"; };
@@ -72,8 +69,6 @@
 				AA100115 /* RTW88IEEE80211.hpp */,
 				AA100116 /* RTW88UserClient.cpp */,
 				AA100117 /* RTW88UserClient.hpp */,
-				AA100118 /* RTW88USBDevice.cpp */,
-				AA100119 /* RTW88USBDevice.hpp */,
 			);
 			name = Kext;
 			sourceTree = "<group>";
@@ -252,7 +247,7 @@
 				MODULE_NAME = rtw88;
 				MODULE_START = _rtw88_start;
 				MODULE_STOP = _rtw88_stop;
-				MODULE_VERSION = "1.0.0";
+				MODULE_VERSION = "1.0.1";
 				OTHER_CFLAGS = "";
 				OTHER_CPLUSPLUSFLAGS = "";
 				OTHER_LDFLAGS = "";
@@ -281,7 +276,7 @@
 				MODULE_NAME = rtw88;
 				MODULE_START = _rtw88_start;
 				MODULE_STOP = _rtw88_stop;
-				MODULE_VERSION = "1.0.0";
+				MODULE_VERSION = "1.0.1";
 				OTHER_CFLAGS = "";
 				OTHER_CPLUSPLUSFLAGS = "";
 				OTHER_LDFLAGS = "";

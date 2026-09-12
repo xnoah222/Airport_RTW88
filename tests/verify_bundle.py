@@ -7,11 +7,11 @@ p=plistlib.loads((b/'Contents/Info.plist').read_bytes())
 template=plistlib.loads((r/'AirPort_RTW88.kext/Contents/Info.plist').read_bytes())
 assert p==template, 'Packaged plist differs from source'
 assert p['CFBundleIdentifier']=='com.rtw88.airport'
-assert p['CFBundleVersion']==p['CFBundleShortVersionString']=='1.0.0'
+assert p['CFBundleVersion']==p['CFBundleShortVersionString']=='1.0.1'
 assert p['CFBundlePackageType']=='KEXT'
 assert 'com.apple.kpi.private' not in p['OSBundleLibraries']
 exe=b/'Contents/MacOS'/p['CFBundleExecutable'];assert exe.is_file()
-assert b'com.rtw88.airport\x00' in exe.read_bytes() and b'1.0.0\x00' in exe.read_bytes()
+assert b'com.rtw88.airport\x00' in exe.read_bytes() and b'1.0.1\x00' in exe.read_bytes()
 for personality in p['IOKitPersonalities'].values():
     assert personality['CFBundleIdentifier']==p['CFBundleIdentifier']
     assert personality['IOProviderClass']=='IOPCIDevice'

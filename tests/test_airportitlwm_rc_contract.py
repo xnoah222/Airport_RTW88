@@ -2,12 +2,17 @@ from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 main=(root/'src/kext/AirportRTW88.cpp').read_text()
 awdl=(root/'src/kext/AirportRTW88AWDL.cpp').read_text()
-assert 'capabilities[2] = 0xFF' in main
-assert 'capabilities[3] = 0x2B' in main
-assert 'capabilities[5] = 0x40' in main
-assert 'capabilities[6] = 0x8C' in main
-assert 'capabilities[8] = 0x0201' in main or 'capabilities[8] = 0x201' in main or 'capabilities[8] = 0x0201' in main or '*(uint16_t *)&d->capabilities[8] = 0x0201' in main
-assert 'capabilities[7] = 0x84' not in main
+sdk=(root/'MacKernelSDK/Headers/IOKit/80211/apple80211_var.h').read_text()
+for token in [
+    'capabilities[2] = 0xFF',
+    'capabilities[3] = 0x2B',
+    'capabilities[4] = 0xAD',
+    'capabilities[5] = 0x8C',
+    'capabilities[6] = 0x8C',
+    'capabilities[7] = 0x84',
+]:
+    assert token in main, token
 assert 'sizeof(apple80211_scan_result) == 1164' in main
+assert 'uint8_t               asr_ie_data[1024]' in sdk
 assert 'SInt32 ret = super::disableVirtualInterface(interface)' in awdl
 print('AirportItlwm RC contract: OK')

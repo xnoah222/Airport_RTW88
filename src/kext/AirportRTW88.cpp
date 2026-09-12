@@ -127,6 +127,11 @@ bool AirportRTW88::start(IOService *provider)
     }
     _ieeeStarted = true;
 
+    _awdlManager = new RTW88AWDLManager;
+    if (!_awdlManager || !_awdlManager->init(_ieee80211, _workLoop))
+        return failStart(provider, "failed to initialize AWDL/P2P manager");
+    IOLog("AirPort_RTW88: AWDL/P2P manager initialized (1.0.1 partial support)\n");
+
     /* Let IO80211/IONetworkController prepare and configure the client.
      * Calling init/attach directly bypasses the controller's lifecycle. */
     IOLog("AirportRTW88: calling attachInterface (AirportItlwm lifecycle, attach=true)\n");
@@ -159,6 +164,12 @@ bool AirportRTW88::start(IOService *provider)
     _netif->registerService();
     IOLog("AirPort_RTW88: controller and network interface registered\n");
 
+    /* Ventura no longer drives the old selector-94 VIF creation sequence.
+     * Ask IO80211 itself to attach the AWDL role once the primary service is
+     * registered. Failure is non-fatal so a VIF quirk can never break STA. */
+    if (!ensureAWDLVirtualInterface())
+        IOLog("AirPort_RTW88: AWDL VIF was not attached; STA remains available\n");
+
     IOLog("AirportRTW88: device started successfully\n");
     return true;
 }
@@ -166,11 +177,15 @@ bool AirportRTW88::start(IOService *provider)
 bool AirportRTW88::failStart(IOService *provider, const char *reason)
 {
     IOLog("AirportRTW88: start failed: %s\n", reason ? reason : "unknown error");
-    teardown();
+
+    /* Match AirportItlwm/IONetworkController ownership ordering: IO80211 must
+     * stop while the controller workloop, interface and backend still exist.
+     * Releasing those first can leave super::stop() touching freed state. */
     if (_superStarted) {
         super::stop(provider);
         _superStarted = false;
     }
+    teardown();
     return false;
 }
 
@@ -356,12 +371,10 @@ void AirportRTW88::teardown()
     if (_intrSrc)
         _intrSrc->disable();
 
-    _awdlInterface = nullptr;
-    _p2pInterface = nullptr;
-    if (_awdlSyncTemplate) {
-        IOFree(_awdlSyncTemplate, _awdlSyncTemplateLength);
-        _awdlSyncTemplate = nullptr;
-        _awdlSyncTemplateLength = 0;
+    if (_awdlManager) {
+        _awdlManager->reset();
+        delete _awdlManager;
+        _awdlManager = nullptr;
     }
 
     if (_netif) {
@@ -432,11 +445,14 @@ void AirportRTW88::teardown()
 
 void AirportRTW88::stop(IOService *provider)
 {
-    teardown();
+    /* AirportItlwm calls IO80211Controller::stop() before releasing its
+     * workloop/HAL/interface state. Keep the same ordering here so superclass
+     * teardown cannot observe a freed IO80211WorkLoop or Realtek backend. */
     if (_superStarted) {
         super::stop(provider);
         _superStarted = false;
     }
+    teardown();
 }
 
 void AirportRTW88::free()
@@ -538,6 +554,13 @@ IOReturn AirportRTW88::selectMedium(const IONetworkMedium *medium)
     return setSelectedMedium(medium) ? kIOReturnSuccess : kIOReturnError;
 }
 
+UInt32 AirportRTW88::getFeatures() const
+{
+    /* Preserve IONetworkController feature flags. IO80211-specific 802.11n
+     * negotiation is handled by enableFeature(), as in AirportItlwm. */
+    return super::getFeatures();
+}
+
 UInt32 AirportRTW88::outputPacket(mbuf_t m, void *param)
 {
     if (_ieee80211) return _ieee80211->outputPacket(m);
@@ -603,7 +626,30 @@ SInt32 AirportRTW88::apple80211Request(unsigned int request_type,
          * requested.  The Realtek backend scans the full channel set, so the
          * request filters are advisory for now. */
         if (!isSet) return kIOReturnUnsupported;
-        if (_scanInProgress) return kIOReturnBusy;
+        /* CoreWiFi can submit another scan while the hardware scan is still
+         * running.  Do not surface EBUSY: keep the active scan and let its
+         * SCAN_DONE satisfy the coalesced request. */
+        if (_scanInProgress) {
+            IOLog("AirPort_RTW88: SCAN_REQ_MULTIPLE coalesced with active scan\n");
+            return kIOReturnSuccess;
+        }
+        {
+            RTW88StateResult st = {};
+            if (_ieee80211->cmdGetState(&st) == kIOReturnSuccess &&
+                st.state == RTW88_STATE_CONNECTED) {
+                /* Do not channel-hop a live STA.  The manual backend scan
+                 * currently scans the complete channel table rather than the
+                 * CoreWiFi-requested subset, which can keep us off-channel
+                 * long enough for the AP to drop the association.  Satisfy
+                 * connected background scans from the already-maintained BSS
+                 * cache; disconnected scans still perform real RF scanning. */
+                _scanCursor = 0;
+                UInt32 result = 0;
+                IOLog("AirPort_RTW88: SCAN_REQ_MULTIPLE connected cache-only completion\n");
+                _netif->postMessage(APPLE80211_M_SCAN_DONE, &result, sizeof(result));
+                return kIOReturnSuccess;
+            }
+        }
         _scanInProgress = true;
         _scanCursor = 0;
         {
@@ -674,12 +720,16 @@ SInt32 AirportRTW88::apple80211Request(unsigned int request_type,
         for (unsigned cap : caps)
             d->capabilities[cap / 8] |= 1U << (cap % 8);
 
+        /* AirportItlwm master (Ventura legacy IO80211 path) publishes these
+         * high bytes. Keep them byte-for-byte aligned with the reference; the
+         * previous 1.0.1 draft had drifted to a different experimental mask. */
         d->capabilities[2] = 0xFF;
         d->capabilities[3] = 0x2B;
-        d->capabilities[5] = 0x40;
+        d->capabilities[4] = 0xAD;
+        d->capabilities[5] = 0x8C;
         d->capabilities[6] = 0x8C;
-        *(uint16_t *)&d->capabilities[8] = 0x0201;
-        IOLog("AirPort_RTW88: CARD_CAPABILITIES AirportItlwm profile advertised\n");
+        d->capabilities[7] = 0x84;
+        IOLog("AirPort_RTW88: CARD_CAPABILITIES AirportItlwm master profile advertised\n");
         return kIOReturnSuccess;
     }
     case APPLE80211_IOC_BSSID: {
@@ -744,7 +794,7 @@ SInt32 AirportRTW88::apple80211Request(unsigned int request_type,
         if (isSet) return kIOReturnUnsupported;
         auto *d = static_cast<apple80211_version_data *>(data);
         bzero(d, sizeof(*d)); d->version = APPLE80211_VERSION;
-        const char *v = request_number == APPLE80211_IOC_DRIVER_VERSION ? "AirPort_RTW88 1.0.0" : "RTL8822BE";
+        const char *v = request_number == APPLE80211_IOC_DRIVER_VERSION ? "AirPort_RTW88 1.0.1" : "RTL8822BE";
         d->string_len = (uint16_t)strlcpy(d->string, v, sizeof(d->string));
         return kIOReturnSuccess;
     }
@@ -876,6 +926,52 @@ SInt32 AirportRTW88::apple80211Request(unsigned int request_type,
     }
 }
 
+bool AirportRTW88::ensureAWDLVirtualInterface()
+{
+    if (!_awdlManager || !_netif)
+        return false;
+    if (_awdlManager->awdlInterface())
+        return true;
+
+    ether_addr addr = {};
+    memcpy(addr.octet, _macAddr.bytes, sizeof(addr.octet));
+    /* AWDL uses a distinct locally administered unicast address. Keep it
+     * deterministic for this boot and distinct from en0. */
+    addr.octet[0] = (uint8_t)((addr.octet[0] | 0x02u) & 0xFEu);
+    addr.octet[5] ^= 0x80u;
+
+    IO80211VirtualInterface *created = nullptr;
+    IOLog("AirPort_RTW88: proactively attaching AWDL VIF mac=%02x:%02x:%02x:%02x:%02x:%02x\n",
+          addr.octet[0], addr.octet[1], addr.octet[2], addr.octet[3], addr.octet[4], addr.octet[5]);
+    bool ok = attachVirtualInterface(&created, &addr, APPLE80211_VIF_AWDL, true);
+    if (!ok || !created) {
+        IOLog("AirPort_RTW88: proactive attachVirtualInterface(AWDL) failed\n");
+        return false;
+    }
+    _awdlManager->setVirtualInterface(APPLE80211_VIF_AWDL, created);
+    IOLog("AirPort_RTW88: proactive AWDL VIF attached bsd=%s role=%u\n",
+          created->getBSDName() ? created->getBSDName() : "?",
+          (unsigned)created->getInterfaceRole());
+
+    /* Ventura can publish the BSD awdl0 object without driving the legacy
+     * enableVirtualInterface callback.  In that state ifconfig shows awdl0
+     * with mtu 0 / inactive and CoreWLAN still reports no usable VIF.  Drive
+     * the controller's normal enable path once, explicitly, after attach.
+     * This is intentionally non-fatal: STA must remain usable even if the
+     * private IO80211 VIF lifecycle rejects the transition. */
+    SInt32 enableRet = enableVirtualInterface(created);
+    IOLog("AirPort_RTW88: proactive AWDL enable result=0x%x bsd=%s\n",
+          (unsigned)enableRet, created->getBSDName() ? created->getBSDName() : "?");
+    if (enableRet != kIOReturnSuccess) {
+        /* Keep the object attached for diagnostics, but do not fake success:
+         * a rejected superclass transition means we do not yet own a valid
+         * data path. */
+        return false;
+    }
+
+    return true;
+}
+
 IOReturn AirportRTW88::handleVIRTUAL_IF_CREATE(struct apple80211_virt_if_create_data *d)
 {
     if (!d || d->version != APPLE80211_VERSION)
@@ -886,11 +982,15 @@ IOReturn AirportRTW88::handleVIRTUAL_IF_CREATE(struct apple80211_virt_if_create_
     ether_addr addr = {};
     memcpy(addr.octet, d->mac, APPLE80211_ADDR_LEN);
 
-    IO80211VirtualInterface **slot =
-        d->role == APPLE80211_VIF_AWDL ? &_awdlInterface : &_p2pInterface;
+    if (!_awdlManager)
+        return kIOReturnNotReady;
 
-    if (*slot) {
-        const char *name = (*slot)->getBSDName();
+    IO80211VirtualInterface *existing =
+        d->role == APPLE80211_VIF_AWDL ? _awdlManager->awdlInterface()
+                                        : _awdlManager->p2pInterface();
+
+    if (existing) {
+        const char *name = existing->getBSDName();
         bzero(d->bsd_name, sizeof(d->bsd_name));
         if (name) strlcpy((char *)d->bsd_name, name, sizeof(d->bsd_name));
         IOLog("AirPort_RTW88: VIRTUAL_IF_CREATE role=%u already exists bsd=%s\n",
@@ -904,13 +1004,14 @@ IOReturn AirportRTW88::handleVIRTUAL_IF_CREATE(struct apple80211_virt_if_create_
     /* Match AirportItlwm's lifecycle: let IO80211 perform the full
      * attach/configure/name sequence. This calls createVirtualInterface(),
      * then enableVirtualInterface(), and eventually yields p2p0/awdl0. */
-    if (!attachVirtualInterface(slot, &addr, d->role, true) || !*slot) {
+    IO80211VirtualInterface *created = nullptr;
+    if (!attachVirtualInterface(&created, &addr, d->role, true) || !created) {
         IOLog("AirPort_RTW88: attachVirtualInterface failed role=%u\n", d->role);
-        *slot = nullptr;
         return kIOReturnError;
     }
+    _awdlManager->setVirtualInterface(d->role, created);
 
-    const char *name = (*slot)->getBSDName();
+    const char *name = created->getBSDName();
     bzero(d->bsd_name, sizeof(d->bsd_name));
     if (name) strlcpy((char *)d->bsd_name, name, sizeof(d->bsd_name));
 
@@ -928,12 +1029,14 @@ IOReturn AirportRTW88::handleVIRTUAL_IF_DELETE(struct apple80211_virt_if_delete_
     memcpy(requested, d->bsd_name, sizeof(d->bsd_name));
 
     IO80211VirtualInterface *target = nullptr;
-    if (_awdlInterface && _awdlInterface->getBSDName() &&
-        strncmp(_awdlInterface->getBSDName(), requested, sizeof(d->bsd_name)) == 0)
-        target = _awdlInterface;
-    else if (_p2pInterface && _p2pInterface->getBSDName() &&
-             strncmp(_p2pInterface->getBSDName(), requested, sizeof(d->bsd_name)) == 0)
-        target = _p2pInterface;
+    IO80211VirtualInterface *awdl = _awdlManager ? _awdlManager->awdlInterface() : nullptr;
+    IO80211VirtualInterface *p2p  = _awdlManager ? _awdlManager->p2pInterface() : nullptr;
+    if (awdl && awdl->getBSDName() &&
+        strncmp(awdl->getBSDName(), requested, sizeof(d->bsd_name)) == 0)
+        target = awdl;
+    else if (p2p && p2p->getBSDName() &&
+             strncmp(p2p->getBSDName(), requested, sizeof(d->bsd_name)) == 0)
+        target = p2p;
 
     if (!target) {
         IOLog("AirPort_RTW88: VIRTUAL_IF_DELETE bsd=%s not found\n", requested);
@@ -944,8 +1047,7 @@ IOReturn AirportRTW88::handleVIRTUAL_IF_DELETE(struct apple80211_virt_if_delete_
     IOLog("AirPort_RTW88: VIRTUAL_IF_DELETE role=%u bsd=%s\n", role, requested);
     bool ok = detachVirtualInterface(target, true);
     if (ok) {
-        if (_awdlInterface == target) _awdlInterface = nullptr;
-        if (_p2pInterface == target) _p2pInterface = nullptr;
+        if (_awdlManager) _awdlManager->clearVirtualInterface(target);
         return kIOReturnSuccess;
     }
     return kIOReturnError;
@@ -1131,7 +1233,19 @@ IOReturn AirportRTW88::handleSCAN_REQ(void *data)
     auto *d = static_cast<apple80211_scan_data *>(data);
     if (d->version != APPLE80211_VERSION || d->ssid_len > APPLE80211_MAX_SSID_LEN ||
         d->num_channels > APPLE80211_MAX_CHANNELS) return kIOReturnBadArgument;
-    if (_scanInProgress) return kIOReturnBusy;
+    if (_scanInProgress) {
+        IOLog("AirPort_RTW88: SCAN_REQ coalesced with active scan\n");
+        return kIOReturnSuccess;
+    }
+    RTW88StateResult st = {};
+    if (_ieee80211->cmdGetState(&st) == kIOReturnSuccess &&
+        st.state == RTW88_STATE_CONNECTED) {
+        _scanCursor = 0;
+        UInt32 result = 0;
+        IOLog("AirPort_RTW88: SCAN_REQ connected cache-only completion\n");
+        _netif->postMessage(APPLE80211_M_SCAN_DONE, &result, sizeof(result));
+        return kIOReturnSuccess;
+    }
     _scanInProgress = true; _scanCursor = 0;
     IOReturn ret = _ieee80211->cmdScan();
     if (ret) _scanInProgress = false;
@@ -1393,10 +1507,90 @@ void AirportRTW88::injectRxFrame(mbuf_t m)
     _netif->flushInputQueue();
 }
 
-void AirportRTW88::injectRxActionFrame(const uint8_t *frame, uint32_t len)
+namespace {
+/* AWDL management frames use an IEEE 802.11 Action header followed by the
+ * Apple vendor header.  Do not feed arbitrary infrastructure action frames
+ * (BlockAck, SA Query, etc.) to the AWDL peer manager. */
+static bool rtw88IsAWDLActionFrame(const uint8_t *frame, uint32_t len,
+                                   uint8_t *subtypeOut)
 {
-    if (!_awdlInterface || !frame || len < 24 || len > 4096)
+    static const uint8_t kAWDLBSSID[6] = {0x00, 0x25, 0x00, 0xff, 0x94, 0x73};
+    static const uint8_t kAppleOUI[3] = {0x00, 0x17, 0xf2};
+    constexpr uint32_t kHdrLen = 24;
+    constexpr uint32_t kFixedAWDLActionLen = 16; /* category+OUI+12-byte fixed body */
+
+    if (!frame || len < kHdrLen + kFixedAWDLActionLen)
+        return false;
+
+    /* Management/Action subtype (little-endian frame-control low byte). */
+    if ((frame[0] & 0xfcU) != 0xd0U)
+        return false;
+
+    /* addr3/BSSID must be Apple's well-known AWDL BSSID. */
+    if (memcmp(frame + 16, kAWDLBSSID, sizeof(kAWDLBSSID)) != 0)
+        return false;
+
+    const uint8_t *a = frame + kHdrLen;
+    if (a[0] != 0x7f || memcmp(a + 1, kAppleOUI, sizeof(kAppleOUI)) != 0 ||
+        a[4] != 8)
+        return false;
+
+    /* byte 5 is the AWDL version; byte 6 is PSF(0) or MIF(3). */
+    const uint8_t subtype = a[6];
+    if (subtype != 0 && subtype != 3)
+        return false;
+
+    /* Reject impossible source addresses before creating peer state. */
+    const uint8_t *sa = frame + 10;
+    bool any = false;
+    for (unsigned i = 0; i < 6; ++i) any |= sa[i] != 0;
+    if (!any || (sa[0] & 0x01U))
+        return false;
+
+    if (subtypeOut)
+        *subtypeOut = subtype;
+    return true;
+}
+
+/* MacKernelSDK only carries an opaque/empty declaration for packet_info_tag.
+ * Reserve a reasonably sized, zeroed backing store so IO80211 never reads
+ * beyond a one-byte empty C++ placeholder if Ventura consults private fields. */
+static packet_info_tag *rtw88ZeroPacketInfo(uint8_t (&storage)[64])
+{
+    bzero(storage, sizeof(storage));
+    return reinterpret_cast<packet_info_tag *>(storage);
+}
+}
+
+void AirportRTW88::injectRxActionFrame(const uint8_t *frame, uint32_t len,
+                                       int8_t rssi, uint16_t channel)
+{
+    IO80211VirtualInterface *awdl =
+        _awdlManager ? _awdlManager->awdlInterface() : nullptr;
+    if (!awdl || !frame || len > 4096)
         return;
+
+    uint8_t subtype = 0xff;
+    if (!rtw88IsAWDLActionFrame(frame, len, &subtype))
+        return;
+
+    /* IO80211's AWDL peer manager needs peer presence before multicast/data
+     * packets can be associated with an AWDL peer.  The public SDK strips
+     * the private parameter names, but this ABI is the one exposed by
+     * IO80211P2PInterface on Ventura.  Supply conservative radio metadata
+     * and let the raw PSF/MIF below provide the authoritative AWDL TLVs. */
+    IO80211P2PInterface *p2p = OSDynamicCast(IO80211P2PInterface, awdl);
+    const uint8_t *sa = frame + 10;
+    if (p2p) {
+        ether_addr peer = {};
+        memcpy(peer.octet, sa, sizeof(peer.octet));
+        IOReturn presence = p2p->postPeerPresence(&peer, (int)rssi,
+                                                  (int)channel,
+                                                  (int)subtype, nullptr);
+        IOLog("AirPort_RTW88: AWDL peer presence sa=%02x:%02x:%02x:%02x:%02x:%02x rssi=%d ch=%u subtype=%u ret=0x%x\n",
+              sa[0], sa[1], sa[2], sa[3], sa[4], sa[5],
+              (int)rssi, (unsigned)channel, (unsigned)subtype, presence);
+    }
 
     mbuf_t m = allocatePacket(len);
     if (!m)
@@ -1407,14 +1601,32 @@ void AirportRTW88::injectRxActionFrame(const uint8_t *frame, uint32_t len)
     }
     mbuf_pkthdr_setlen(m, len);
 
-    packet_info_tag tag = {};
-    UInt32 ret = _awdlInterface->inputPacket(m, &tag);
+    alignas(8) uint8_t tagStorage[64];
+    UInt32 ret = awdl->inputPacket(m, rtw88ZeroPacketInfo(tagStorage));
+    IOLog("AirPort_RTW88: AWDL action RX sa=%02x:%02x:%02x:%02x:%02x:%02x subtype=%u rssi=%d ch=%u input=0x%x len=%u\n",
+          sa[0], sa[1], sa[2], sa[3], sa[4], sa[5],
+          (unsigned)subtype, (int)rssi, (unsigned)channel, ret, len);
     if (ret != kIOReturnSuccess && ret != kIOReturnOutputSuccess) {
-        IOLog("AirPort_RTW88: AWDL action RX inputPacket result=0x%x len=%u\n", ret, len);
         /* IO80211VirtualInterface owns the mbuf on accepted paths. On a
          * failure return it is safer not to double-free an ambiguously
-         * consumed packet; log the result for the Ventura trace instead. */
+         * consumed packet; the trace above records the Ventura result. */
     }
+}
+
+void AirportRTW88::injectRxAWDLFrame(mbuf_t m)
+{
+    if (!m) return;
+    IO80211VirtualInterface *awdl = _awdlManager ? _awdlManager->awdlInterface() : nullptr;
+    if (!awdl) {
+        mbuf_freem(m);
+        return;
+    }
+    const unsigned long packetLen = (unsigned long)mbuf_pkthdr_len(m);
+    alignas(8) uint8_t tagStorage[64];
+    UInt32 ret = awdl->inputPacket(m, rtw88ZeroPacketInfo(tagStorage));
+    if (ret != kIOReturnSuccess && ret != 0)
+        IOLog("AirPort_RTW88: AWDL data RX inputPacket result=0x%x len=%lu\n",
+              ret, packetLen);
 }
 
 IOWorkLoop *AirportRTW88::getRxWorkLoop()
@@ -1435,13 +1647,13 @@ void AirportRTW88::setLinkStatus(UInt32 status)
                 self->_netif->setLinkState(up ? kIO80211NetworkLinkUp : kIO80211NetworkLinkDown, 0U);
                 if (up) self->_netif->postMessage(APPLE80211_M_ASSOC_DONE);
             }
-            /* AirportItlwm mirrors infrastructure link state onto its AWDL
-             * interface. Keep that behavior once IO80211 has created ours. */
-            if (self->_awdlInterface) {
-                if (up) self->_awdlInterface->setEnabledBySystem(true);
-                self->_awdlInterface->setLinkState(
-                    up ? kIO80211NetworkLinkUp : kIO80211NetworkLinkDown, 0U);
-            }
+            /* AWDL has an independent IO80211 virtual-interface lifecycle.
+             * Do not mirror the infrastructure association state onto awdl0:
+             * when en0 is unassociated the single PHY may still be available
+             * for AWDL discovery/channel operation, and forcing LinkDown here
+             * prevents IO80211's AWDL peer manager from using that VIF.
+             * enableVirtualInterface()/disableVirtualInterface() own the AWDL
+             * enabled/link state instead. */
             return kIOReturnSuccess;
         }, (void *)(uintptr_t)status);
 }

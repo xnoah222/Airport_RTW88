@@ -19,6 +19,7 @@ for token in [
 
 assert "if (feature == kIO80211Feature80211n)" in main
 assert "return 102;" in main
-assert "attachVirtualInterface(slot, &addr, d->role, true)" in main
+assert "attachVirtualInterface(&created, &addr, d->role, true)" in main
+assert "_awdlManager->setVirtualInterface(d->role, created)" in main
 assert "txRawManagementFrame" in awdl
 print("AirportItlwm AWDL alignment: OK")

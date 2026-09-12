@@ -75,15 +75,17 @@ DRIVER_CFLAGS := \
     -I$(LINUX_SRC) \
     -DRTW88_MACOS=1 \
     -D__KERNEL__ \
+    -DCONFIG_RTW88_PCI=1 \
+    -DCONFIG_RTW88_8822B=1 \
     -DCONFIG_RTW88_8822BE=1 \
+    -DCONFIG_RTW88_8822C=1 \
     -DCONFIG_RTW88_8822CE=1 \
+    -DCONFIG_RTW88_8821C=1 \
     -DCONFIG_RTW88_8821CE=1 \
-    -DCONFIG_RTW88_8812AE=1 \
+    -DCONFIG_RTW88_8821A=1 \
+    -DCONFIG_RTW88_8812A=1 \
+    -DCONFIG_RTW88_8814A=1 \
     -DCONFIG_RTW88_8814AE=1 \
-    -DCONFIG_RTW88_8821AU=1 \
-    -DCONFIG_RTW88_8822BU=1 \
-    -DCONFIG_RTW88_8822CU=1 \
-    -DCONFIG_RTW88_8812AU=1 \
     -Werror=implicit-function-declaration \
     -Werror=int-conversion \
     -Werror=incompatible-pointer-types \
@@ -104,7 +106,7 @@ KEXT_CXXFLAGS := \
 # Source files                                                         #
 # ------------------------------------------------------------------ #
 
-# Linux driver core C files (compiled with compat headers)
+# Linux driver core C files (PCIe-only transport; compiled with compat headers)
 DRIVER_SRCS := \
     $(LINUX_SRC)/main.c \
     $(LINUX_SRC)/mac.c \
@@ -121,34 +123,26 @@ DRIVER_SRCS := \
     $(LINUX_SRC)/sar.c \
     $(LINUX_SRC)/util.c \
     $(LINUX_SRC)/pci.c \
-    $(LINUX_SRC)/usb.c \
-    $(LINUX_SRC)/sdio.c \
     $(LINUX_SRC)/mac80211.c
 
-# Chip-specific C files
+# Chip-specific C files (PCIe chip cores + PCIe frontends only)
 CHIP_SRCS := \
     $(LINUX_SRC)/rtw8822b.c \
     $(LINUX_SRC)/rtw8822b_table.c \
     $(LINUX_SRC)/rtw8822be.c \
-    $(LINUX_SRC)/rtw8822bu.c \
     $(LINUX_SRC)/rtw8822c.c \
     $(LINUX_SRC)/rtw8822c_table.c \
     $(LINUX_SRC)/rtw8822ce.c \
-    $(LINUX_SRC)/rtw8822cu.c \
     $(LINUX_SRC)/rtw8821c.c \
     $(LINUX_SRC)/rtw8821c_table.c \
     $(LINUX_SRC)/rtw8821ce.c \
-    $(LINUX_SRC)/rtw8821cu.c \
     $(LINUX_SRC)/rtw8812a.c \
     $(LINUX_SRC)/rtw8812a_table.c \
-    $(LINUX_SRC)/rtw8812au.c \
     $(LINUX_SRC)/rtw8814a.c \
     $(LINUX_SRC)/rtw8814a_table.c \
     $(LINUX_SRC)/rtw8814ae.c \
-    $(LINUX_SRC)/rtw8814au.c \
     $(LINUX_SRC)/rtw8821a.c \
     $(LINUX_SRC)/rtw8821a_table.c \
-    $(LINUX_SRC)/rtw8821au.c \
     $(LINUX_SRC)/rtw88xxa.c
 
 # Compat C implementation
@@ -169,7 +163,7 @@ KMOD_SRCS := \
     $(KEXT_SRC)/kmod_info.c
 
 # IOKit C++ wrapper
-# RTW88USBDevice excluded: IOUSBHostFamily not in OSBundleLibraries
+# PCIe-only project: USB/SDIO device wrappers and transport backends are intentionally excluded
 KEXT_SRCS := \
     $(KEXT_SRC)/RTW88Kext.cpp \
     $(KEXT_SRC)/RTW88PCIDevice.cpp \
@@ -351,6 +345,7 @@ AIRPORT_KEXT_SRCS := \
     $(KEXT_SRC)/RTW88HwOps.cpp \
     $(KEXT_SRC)/AirportRTW88.cpp \
     $(KEXT_SRC)/AirportRTW88AWDL.cpp \
+    $(KEXT_SRC)/RTW88AWDLManager.cpp \
     $(KEXT_SRC)/AirportRTW88Interface.cpp
 
 AIRPORT_KEXT_OBJS := $(patsubst $(KEXT_SRC)/%.cpp, $(BUILD_DIR)/airport/%.o, $(AIRPORT_KEXT_SRCS))

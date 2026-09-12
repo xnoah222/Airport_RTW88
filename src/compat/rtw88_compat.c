@@ -1148,6 +1148,20 @@ void rtw88_sw_scan_switch_channel(struct ieee80211_hw *hw)
     mutex_unlock(&rtwdev->mutex);
 }
 
+/* Dedicated AWDL channel switch for the unassociated case. Unlike the scan
+ * helper, consume the RF-calibration request before transmitting data/action
+ * frames on the new channel. */
+void rtw88_awdl_switch_channel(struct ieee80211_hw *hw)
+{
+    if (!hw || !hw->priv) return;
+    struct rtw_dev *rtwdev = (struct rtw_dev *)hw->priv;
+    mutex_lock(&rtwdev->mutex);
+    rtw_set_channel(rtwdev);
+    rtwdev->need_rfk = true;
+    rtw_chip_prepare_tx(rtwdev);
+    mutex_unlock(&rtwdev->mutex);
+}
+
 void rtw88_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
     if (!hw || !hw->priv || !vif) return;

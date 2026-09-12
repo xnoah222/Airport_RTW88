@@ -97,7 +97,12 @@ public:
     virtual mbuf_t allocateInputPacket(uint32_t len) = 0;
     virtual void injectRxFrame(mbuf_t m) = 0;
     /* Optional native 802.11 action-frame sink for AWDL/P2P controllers. */
-    virtual void injectRxActionFrame(const uint8_t *frame, uint32_t len) { (void)frame; (void)len; }
+    virtual void injectRxActionFrame(const uint8_t *frame, uint32_t len, int8_t rssi, uint16_t channel) {
+        (void)frame; (void)len; (void)rssi; (void)channel;
+    }
+    /* Optional AWDL Ethernet sink. Default consumes the packet so legacy
+     * IOEthernet parents that do not expose an AWDL VIF cannot leak it. */
+    virtual void injectRxAWDLFrame(mbuf_t m) { if (m) mbuf_freem(m); }
     virtual IOWorkLoop *getRxWorkLoop() = 0;
     virtual void setLinkStatus(UInt32 status) = 0;
     virtual ~RTW88RxDelegate() {}
@@ -160,11 +165,15 @@ public:
     IOReturn  start();       /* probe: chip info, efuse, register hw */
     void      stop();        /* full teardown */
     IOReturn setReceiveMulticast(bool active);
+    IOReturn setAWDLReceiveMode(bool active);
+    IOReturn setAWDLChannel(uint16_t channel);
     IOReturn  powerOn();     /* enable: rtw_core_start */
     void      powerOff();    /* disable: rtw_core_stop */
     void      handleInterrupt();
     UInt32    outputPacket(mbuf_t m);
     bool      txRawManagementFrame(const uint8_t *frame, uint32_t len);
+    /* Native AWDL Ethernet -> 802.11 direct data encapsulation. Consumes m. */
+    bool      txAWDLDataFrame(mbuf_t m);
     void      getMACAddress(uint8_t *mac);
 
     /* Called from compat layer (ieee80211_rx_irqsafe) */
@@ -253,6 +262,10 @@ private:
     bool      txNullFunc(bool powerSave);
     bool      txProbeRequest();
     bool      txDataFrame(mbuf_t m);
+    bool      tryDeliverAWDLDataFrame(struct sk_buff *skb);
+    void      deliverAWDLEthernet(const uint8_t *da, const uint8_t *sa,
+                                  uint16_t ethertype,
+                                  const uint8_t *payload, uint32_t paylen);
     struct sk_buff *mbufToSkb(mbuf_t m);
     mbuf_t    skbToMbuf(struct sk_buff *skb);
 
@@ -297,6 +310,8 @@ private:
     bool                _pmkProvided = false;
     bool                _externalSupplicant = false;
     bool                _receiveMulticast = true;
+    bool                _awdlReceiveMode = false;
+    uint16_t            _awdlChannel = 0;
     uint8_t             _macAddr[6]   = {};
     uint32_t            _timeoutMs    = 0;
 
@@ -336,6 +351,7 @@ private:
     uint16_t _txSeq    = 0;
     /* Separate SN space for QoS data (TID 0) so the BlockAck window is gap-free */
     uint16_t _dataSeq  = 0;
+    uint16_t _awdlDataSeq = 0;
     uint16_t _assocAID = 0;
 
     /* A-MPDU aggregation (BlockAck) state */

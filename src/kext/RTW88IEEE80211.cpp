@@ -985,6 +985,73 @@ IOReturn RTW88IEEE80211::setReceiveMulticast(bool active)
     return kIOReturnSuccess;
 }
 
+IOReturn RTW88IEEE80211::setAWDLReceiveMode(bool active)
+{
+    if (!_hw || !_hw->ops || !_hw->ops->configure_filter)
+        return kIOReturnNotReady;
+
+    _awdlReceiveMode = active;
+    if (!active)
+        _awdlChannel = 0;
+
+    /* AWDL's virtual MAC is not programmed as the primary hardware address.
+     * FIF_OTHER_BSS maps to Realtek BIT_AAP (accept all physical addresses),
+     * allowing direct AWDL unicast frames to reach our software classifier.
+     * Preserve multicast reception while AWDL is active. */
+    unsigned int changed = FIF_OTHER_BSS | FIF_ALLMULTI;
+    unsigned int flags = active ? (FIF_OTHER_BSS | FIF_ALLMULTI)
+                                : (_receiveMulticast ? FIF_ALLMULTI : 0);
+    _hw->ops->configure_filter(_hw, changed, &flags, 0);
+    IOLog("rtw88: AWDL receive mode %s flags=0x%x\n",
+          active ? "enabled" : "disabled", flags);
+    return kIOReturnSuccess;
+}
+
+IOReturn RTW88IEEE80211::setAWDLChannel(uint16_t channel)
+{
+    if (!_powered || !_hw || !_hw->wiphy || channel == 0)
+        return kIOReturnNotReady;
+
+    /* Remember the channel even when an associated STA temporarily prevents
+     * switching. This also lets an idle scan restore the AWDL home channel. */
+    _awdlChannel = channel;
+
+    /* A single RTL8822B PHY cannot stay on two channels at once. Never move
+     * an associated STA permanently just because AWDL changed its master
+     * channel; the future timeslicer owns that case. Unassociated AWDL can
+     * safely own the radio and is enough for a real AirDrop-only session. */
+    if (_state == RTW88_STATE_CONNECTED ||
+        (_state == RTW88_STATE_SCANNING && _scanReturnState == RTW88_STATE_CONNECTED) ||
+        _state == RTW88_STATE_AUTHENTICATING || _state == RTW88_STATE_ASSOCIATING ||
+        _state == RTW88_STATE_HANDSHAKING)
+        return kIOReturnBusy;
+
+    struct ieee80211_channel *target = nullptr;
+    for (int b = 0; b < NL80211_NUM_BANDS && !target; ++b) {
+        struct ieee80211_supported_band *band = _hw->wiphy->bands[b];
+        if (!band) continue;
+        for (int i = 0; i < band->n_channels; ++i) {
+            if (band->channels[i].hw_value == channel &&
+                !(band->channels[i].flags & IEEE80211_CHAN_DISABLED)) {
+                target = &band->channels[i];
+                target->band = band->band;
+                break;
+            }
+        }
+    }
+    if (!target)
+        return kIOReturnUnsupported;
+
+    _hw->conf.chandef.chan = target;
+    _hw->conf.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+    _hw->conf.chandef.center_freq1 = target->center_freq;
+    rtw88_awdl_switch_channel(_hw);
+    IOLog("rtw88: AWDL radio channel=%u freq=%u\n", channel, target->center_freq);
+    return kIOReturnSuccess;
+}
+
+
+
 IOReturn RTW88IEEE80211::powerOn()
 {
     IOLog("rtw88: IEEE80211 powerOn\n");
@@ -1067,7 +1134,11 @@ void RTW88IEEE80211::rxFrame(struct sk_buff *skb)
     if (ieee80211_is_mgmt(fc)) {
         processRxMgmt(skb);
     } else if (ieee80211_is_data(fc)) {
-        processRxData(skb);
+        /* AWDL data is a direct (no-DS) 802.11 frame and remains valid even
+         * when the infrastructure STA is disconnected. Consume it before the
+         * normal ToDS/FromDS path applies association-state assumptions. */
+        if (!tryDeliverAWDLDataFrame(skb))
+            processRxData(skb);
     } else {
         kfree_skb(skb);
     }
@@ -1161,8 +1232,25 @@ void RTW88IEEE80211::processRxMgmt(struct sk_buff *skb)
         /* AWDL/P2P action frames are meaningful even while the infrastructure
          * STA is not associated. Give the native virtual interface a copy
          * before handling infrastructure BlockAck actions locally. */
-        if (_parent)
-            _parent->injectRxActionFrame(skb->data, skb->len);
+        if (_parent) {
+            struct ieee80211_rx_status *rxs = IEEE80211_SKB_RXCB(skb);
+            uint16_t rxChannel = 0;
+            if (rxs && rxs->band < NL80211_NUM_BANDS && _hw && _hw->wiphy) {
+                struct ieee80211_supported_band *band = _hw->wiphy->bands[rxs->band];
+                if (band) {
+                    /* rx_status::freq is not consistently populated by every
+                     * rtw88 path in this port. Prefer the currently tuned
+                     * chandef and fall back to the AWDL home channel. */
+                    if (_hw->conf.chandef.chan)
+                        rxChannel = (uint16_t)_hw->conf.chandef.chan->hw_value;
+                    else if (_awdlChannel)
+                        rxChannel = _awdlChannel;
+                }
+            }
+            _parent->injectRxActionFrame(skb->data, skb->len,
+                                         rxs ? (int8_t)rxs->signal : 0,
+                                         rxChannel);
+        }
 
         if (_state == RTW88_STATE_CONNECTED) {
             struct ieee80211_hdr_3addr *h3 =
@@ -1380,6 +1468,21 @@ void RTW88IEEE80211::processRxData(struct sk_buff *skb)
                      (_state == RTW88_STATE_SCANNING &&
                       _scanReturnState == RTW88_STATE_CONNECTED);
     if (!connected) {
+        kfree_skb(skb);
+        return;
+    }
+
+    /* AWDL receive mode asks the chip to accept frames for an additional
+     * virtual MAC. Re-establish the infrastructure address/BSSID filter in
+     * software before the legacy Ethernet conversion path. */
+    struct ieee80211_hdr *infraHdr = (struct ieee80211_hdr *)skb->data;
+    uint16_t infraFc = le16_to_cpu(infraHdr->frame_control);
+    bool fromDS = (infraFc & IEEE80211_FCTL_FROMDS) != 0;
+    bool toUs = memcmp(infraHdr->addr1, _macAddr, 6) == 0 ||
+                is_broadcast_ether_addr(infraHdr->addr1) ||
+                is_multicast_ether_addr(infraHdr->addr1);
+    bool fromAP = memcmp(infraHdr->addr2, _targetBSS.bssid, 6) == 0;
+    if (!fromDS || !toUs || !fromAP) {
         kfree_skb(skb);
         return;
     }
@@ -1879,22 +1982,41 @@ void RTW88IEEE80211::scanDone(bool aborted)
 
     if (_state == RTW88_STATE_SCANNING) {
         RTW88State returnState = _scanReturnState;
-        if (returnState == RTW88_STATE_CONNECTED && _manualScanChannelCount)
+        /* Restore the infrastructure channel for every connected scan, not
+         * only the manual fallback.  This keeps STA coherent if hw_scan is
+         * available on another RTL88xx backend later. */
+        if (returnState == RTW88_STATE_CONNECTED)
             restoreConnectedChannel();
         _state = (returnState == RTW88_STATE_IDLE) ?
             RTW88_STATE_IDLE : returnState;
         _scanReturnState = RTW88_STATE_IDLE;
         _manualScanOnHomeChannel = false;
+
+        /* A background CoreWiFi scan can leave an unassociated radio on its
+         * final scan channel. If AWDL owns the idle PHY, return it to the AWDL
+         * home/master channel before notifying IO80211 that scan completed. */
+        if (returnState == RTW88_STATE_IDLE && _awdlReceiveMode && _awdlChannel) {
+            IOReturn awdlRestore = setAWDLChannel(_awdlChannel);
+            if (awdlRestore != kIOReturnSuccess)
+                IOLog("rtw88: AWDL channel restore after scan failed 0x%x\n", awdlRestore);
+        }
     }
     if (_delegate) { UInt32 result = aborted ? 1 : 0; _delegate->rtw88Event(kRTW88EventScanDone, &result); }
 }
 
 IOReturn RTW88IEEE80211::cmdScan()
 {
-    if (_state != RTW88_STATE_IDLE)
+    /* Physical scans are only safe while unassociated until the manual
+     * scanner can honor CoreWiFi's requested channel subset / availability
+     * windows. AirportRTW88 handles CONNECTED background scans cache-only. */
+    if (_state != RTW88_STATE_IDLE) {
+        IOLog("rtw88: physical scan busy state=%u\n", (unsigned)_state);
         return kIOReturnBusy;
+    }
     if (!_powered || !_hw || !_hw->ops) return kIOReturnNotReady;
     RTW88State returnState = _state;
+    IOLog("rtw88: scan start returnState=%u connected=%u\n",
+          (unsigned)returnState, returnState == RTW88_STATE_CONNECTED ? 1U : 0U);
 
     IOLockLock(_bssLock);
     _scanGeneration++;
@@ -3086,6 +3208,155 @@ bool RTW88IEEE80211::txProbeRequest()
     body += 2 + ratesLen;
 
     return txMgmtFrame(frame, (uint32_t)(body - frame));
+}
+
+/* AWDL uses a direct 802.11 data frame, not the infrastructure ToDS path.
+ * The payload format is:
+ *   802.11(24) | SNAP(00:17:f2, PID 0x0800) | AWDL data(8) | L3 payload
+ * The Realtek tx core explicitly supports data frames with sta == nullptr,
+ * selecting the vif MAC-ID and conservative 6 Mbps/20 MHz defaults. */
+bool RTW88IEEE80211::txAWDLDataFrame(mbuf_t m)
+{
+    if (!m || !_hw || !_hw->ops || !_hw->ops->tx || !_vif) {
+        if (m) mbuf_freem(m);
+        return false;
+    }
+
+    size_t total = mbuf_pkthdr_len(m);
+    if (total < 14 || total > 4096) {
+        mbuf_freem(m);
+        return false;
+    }
+
+    uint8_t eh[14] = {};
+    if (mbuf_copydata(m, 0, sizeof(eh), eh) != 0) {
+        mbuf_freem(m);
+        return false;
+    }
+    const uint16_t ethertype = (uint16_t)((eh[12] << 8) | eh[13]);
+    const uint32_t paylen = (uint32_t)total - 14;
+
+    /* 24-byte 802.11 header + 8-byte AWDL SNAP + 8-byte AWDL data header. */
+    const uint32_t framelen = 24 + 8 + 8 + paylen;
+    struct sk_buff *skb = alloc_skb(framelen + 128, GFP_ATOMIC);
+    if (!skb) {
+        mbuf_freem(m);
+        return false;
+    }
+    skb_reserve(skb, 128);
+
+    struct ieee80211_hdr_3addr *h =
+        (struct ieee80211_hdr_3addr *)skb_put(skb, 24);
+    bzero(h, sizeof(*h));
+    h->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA);
+    memcpy(h->addr1, eh, 6);       /* peer / multicast destination */
+    memcpy(h->addr2, eh + 6, 6);   /* AWDL virtual source address */
+    static const uint8_t awdlBssid[6] = {0x00,0x25,0x00,0xff,0x94,0x73};
+    memcpy(h->addr3, awdlBssid, sizeof(awdlBssid));
+    h->seq_ctrl = cpu_to_le16((uint16_t)(_txSeq++ & 0x0fff) << 4);
+
+    /* LLC/SNAP with Apple's AWDL OUI and AWDL protocol ID 0x0800. */
+    uint8_t *snap = skb_put(skb, 8);
+    snap[0] = 0xaa; snap[1] = 0xaa; snap[2] = 0x03;
+    snap[3] = 0x00; snap[4] = 0x17; snap[5] = 0xf2;
+    snap[6] = 0x08; snap[7] = 0x00;
+
+    /* AWDL data header: LE magic 0x0403, LE sequence, zero pad, BE EtherType. */
+    uint8_t *aw = skb_put(skb, 8);
+    aw[0] = 0x03; aw[1] = 0x04;
+    uint16_t seq = _awdlDataSeq++;
+    aw[2] = (uint8_t)(seq & 0xff); aw[3] = (uint8_t)(seq >> 8);
+    aw[4] = 0; aw[5] = 0;
+    aw[6] = (uint8_t)(ethertype >> 8); aw[7] = (uint8_t)ethertype;
+
+    if (paylen) {
+        uint8_t *payload = skb_put(skb, paylen);
+        if (mbuf_copydata(m, 14, paylen, payload) != 0) {
+            kfree_skb(skb);
+            mbuf_freem(m);
+            return false;
+        }
+    }
+
+    skb_set_queue_mapping(skb, IEEE80211_AC_BE);
+    skb->priority = 0;
+    skb->protocol = cpu_to_be16(ethertype);
+
+    struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+    memset(info, 0, sizeof(*info));
+    info->flags = IEEE80211_TX_CTL_FIRST_FRAGMENT;
+    info->band = (_hw->conf.chandef.chan &&
+                  _hw->conf.chandef.chan->band == NL80211_BAND_5GHZ)
+                   ? NL80211_BAND_5GHZ : NL80211_BAND_2GHZ;
+    info->control.vif = _vif;
+    info->control.sta = nullptr;
+
+    struct ieee80211_tx_control ctrl = { .sta = nullptr };
+    _hw->ops->tx(_hw, &ctrl, skb);
+    mbuf_freem(m);
+    return true;
+}
+
+/* Detect the AWDL data envelope before applying infrastructure association
+ * rules. Returns true when ownership of skb was consumed. */
+bool RTW88IEEE80211::tryDeliverAWDLDataFrame(struct sk_buff *skb)
+{
+    if (!skb || skb->len < 24 + 8 + 8)
+        return false;
+
+    struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+    uint16_t fc = le16_to_cpu(hdr->frame_control);
+    if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) != 0)
+        return false;
+
+    static const uint8_t awdlBssid[6] = {0x00,0x25,0x00,0xff,0x94,0x73};
+    if (memcmp(hdr->addr3, awdlBssid, sizeof(awdlBssid)) != 0)
+        return false;
+
+    uint16_t hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+    if (hdrlen < 24 || skb->len < (uint32_t)hdrlen + 16)
+        return false;
+
+    const uint8_t *p = skb->data + hdrlen;
+    /* SNAP AA AA 03 00 17 F2 08 00 */
+    if (p[0] != 0xaa || p[1] != 0xaa || p[2] != 0x03 ||
+        p[3] != 0x00 || p[4] != 0x17 || p[5] != 0xf2 ||
+        p[6] != 0x08 || p[7] != 0x00)
+        return false;
+    p += 8;
+
+    if (p[0] != 0x03 || p[1] != 0x04) /* LE 0x0403 */
+        return false;
+    uint16_t ethertype = (uint16_t)((p[6] << 8) | p[7]);
+    p += 8;
+    uint32_t paylen = (uint32_t)(skb->data + skb->len - p);
+
+    deliverAWDLEthernet(hdr->addr1, hdr->addr2, ethertype, p, paylen);
+    kfree_skb(skb);
+    return true;
+}
+
+void RTW88IEEE80211::deliverAWDLEthernet(const uint8_t *da, const uint8_t *sa,
+                                         uint16_t ethertype,
+                                         const uint8_t *payload, uint32_t paylen)
+{
+    if (!_parent || !da || !sa || (!payload && paylen))
+        return;
+    mbuf_t m = _parent->allocateInputPacket(14 + paylen);
+    if (!m)
+        return;
+
+    uint8_t eh[14];
+    memcpy(eh, da, 6);
+    memcpy(eh + 6, sa, 6);
+    eh[12] = (uint8_t)(ethertype >> 8);
+    eh[13] = (uint8_t)ethertype;
+    if (mbuf_copyback(m, 0, sizeof(eh), eh, MBUF_WAITOK) != 0 ||
+        (paylen && mbuf_copyback(m, 14, paylen, payload, MBUF_WAITOK) != 0)) {
+        mbuf_freem(m);
+        return;
+    }
+    _parent->injectRxAWDLFrame(m);
 }
 
 bool RTW88IEEE80211::txDataFrame(mbuf_t m)

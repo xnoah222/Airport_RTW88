@@ -24,7 +24,8 @@
 #include <IOKit/IOCommandGate.h>
 
 #include "RTW88IEEE80211.hpp"   /* for RTW88EventDelegate, RTW88BSS, RTW88State */
-#include "RTW88UserClient.hpp"  /* for struct RTW88StateResult (definida ahi, no en RTW88IEEE80211.hpp) */
+#include "RTW88UserClient.hpp"  /* for struct RTW88StateResult */
+#include "RTW88AWDLManager.hpp"
 
 class AirportRTW88Interface;
 
@@ -48,6 +49,7 @@ public:
     bool     createWorkLoop() override;
     IOWorkLoop *getWorkLoop() const override;
     IOReturn selectMedium(const IONetworkMedium *medium) override;
+    UInt32   getFeatures() const override;
     bool useAppleRSNSupplicant(IO80211Interface *) override { return false; }
     UInt32   outputPacket(mbuf_t m, void *param) override;
     IOReturn getHardwareAddress(IOEthernetAddress *addr) override;
@@ -94,7 +96,8 @@ public:
      * para esto; ahora cualquiera de los dos kexts puede implementarlo. */
     virtual mbuf_t allocateInputPacket(uint32_t len) override;
     virtual void injectRxFrame(mbuf_t m) override;
-    virtual void injectRxActionFrame(const uint8_t *frame, uint32_t len) override;
+    virtual void injectRxActionFrame(const uint8_t *frame, uint32_t len, int8_t rssi, uint16_t channel) override;
+    virtual void injectRxAWDLFrame(mbuf_t m) override;
     virtual IOWorkLoop *getRxWorkLoop() override;
     virtual void setLinkStatus(UInt32 status) override;
 
@@ -116,6 +119,7 @@ private:
     IOReturn handlePOWER(bool set, struct apple80211_power_data *data);
     IOReturn handleVIRTUAL_IF_CREATE(struct apple80211_virt_if_create_data *data);
     IOReturn handleVIRTUAL_IF_DELETE(struct apple80211_virt_if_delete_data *data);
+    bool ensureAWDLVirtualInterface();
 
     apple80211_scan_result _scanResult = {};
     uint32_t _scanCursor = 0;
@@ -123,14 +127,9 @@ private:
     uint32_t _authUpper = APPLE80211_AUTHTYPE_NONE;
     uint8_t  _countryCode[APPLE80211_MAX_CC_LEN] = {'Z', 'Z', 0};
 
-    /* Virtual-interface/AWDL control state. IO80211 owns interface lifetime;
-     * these are non-retained observation pointers used only while enabled. */
-    IO80211VirtualInterface *_awdlInterface = nullptr;
-    IO80211VirtualInterface *_p2pInterface  = nullptr;
-    uint8_t  *_awdlSyncTemplate = nullptr;
-    uint32_t  _awdlSyncTemplateLength = 0;
-    uint32_t  _awdlElectionMetric = 0;
-    bool      _awdlSyncEnabled = true;
+    /* 1.0.1: AWDL/P2P state is isolated from STA state. IO80211 still owns
+     * virtual-interface lifetime; the manager only observes those pointers. */
+    RTW88AWDLManager       *_awdlManager = nullptr;
 
     IOPCIDevice           *_pciDev      = nullptr;
     AirportRTW88Interface  *_netif       = nullptr;

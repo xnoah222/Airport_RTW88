@@ -5,23 +5,21 @@ SUPPORTED CHIPS
 ---------------
 PCIe (hackintosh priority):
   RTL8822BE  0x10EC:0xB822  (dual-band AC, 2x2)
-  RTL8822CE  0x10EC:0xC822  (dual-band AC, 2x2) ← most common
-  RTL8821CE  0x10EC:0xC821  (dual-band AC, 1x1)
+  RTL8822CE  0x10EC:0xC822 / 0xC82F  (dual-band AC, 2x2)
+  RTL8821CE  0x10EC:0xC821 / 0xB821  (dual-band AC, 1x1)
+  RTL8821AE  0x10EC:0x8821  (dual-band AC, 1x1)
   RTL8812AE  0x10EC:0x8812  (dual-band AC, 2x2)
   RTL8814AE  0x10EC:0x8813  (dual-band AC, 4x4)
 
-USB:
-  RTL8821AU  0x0BDA:0x8300
-  RTL8822BU  0x0BDA:0xB812
-  RTL8822CU  0x0BDA:0xC812
-  RTL8812AU  0x0BDA:0x8812
+USB / SDIO:
+  Not supported. These transports are intentionally excluded from the AirPort_RTW88 build.
 
 FIRMWARE FILES
 --------------
-The driver loads firmware from:
-  /Library/Extensions/rtw88.kext/Contents/Resources/<name>
+The current Makefile embeds firmware/*.bin into src/compat/fw_blobs.c at build time.
+No runtime /lib/firmware or USB-specific firmware path is required.
 
-Required firmware files (from linux-firmware package):
+Required chip firmware files:
   rtw8822b_fw.bin
   rtw8822c_fw.bin
   rtw8821c_fw.bin
@@ -34,7 +32,7 @@ Fetch from: https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmw
   rtw88/rtw8822c_fw.bin
   etc.
 
-Copy into rtw88.kext/Contents/Resources/ before building.
+Place/update these files in Feixiao/firmware/ before building; gen_fw_blobs.py embeds them into the kext.
 
 BUILD
 -----
@@ -124,8 +122,6 @@ ARCHITECTURE OVERVIEW
   ├── RTW88PCIDevice   (IOEthernetController — PCIe)
   │   └── RTW88IEEE80211   (802.11 state machine)
   │       └── rtw88 driver core (Linux C code via compat layer)
-  ├── RTW88USBDevice   (IOEthernetController — USB)
-  │   └── RTW88IEEE80211   (shared)
   └── RTW88UserClient  (IOUserClient ← rtw88ctl IPC)
 
   Linux compat layer (src/compat/):
@@ -165,16 +161,13 @@ KNOWN LIMITATIONS / TODO
 --------------------------
 1. WPA3-SAE not implemented (WPA2-CCMP fully supported).
 2. 802.11r/802.11k roaming not yet implemented.
-3. USB TX aggregation path needs tuning for throughput.
+3. USB and SDIO are intentionally out of scope; only PCIe is built.
 4. MU-MIMO beamforming disabled by default (enable via driver flag).
-5. SDIO interface is stubbed (low priority for hackintosh).
-6. Power management / sleep-wake cycle needs field testing.
-7. The 4-way EAPOL MIC computation stub must be completed with HMAC-SHA1
-   (or OpenSSL) for WPA2 to fully authenticate on real hardware.
-8. Driver signing: required for SIP-enabled macOS without OpenCore.
+5. Power management / sleep-wake cycle needs field testing.
+6. Driver signing: required for SIP-enabled macOS without OpenCore.
 
 
-AIRPORT NATIVE TARGET — AirPort_RTW88 1.0.0
+AIRPORT NATIVE TARGET — AirPort_RTW88 1.0.1
 ------------------------------------------------
 Build:
   make clean

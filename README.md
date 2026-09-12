@@ -8,28 +8,31 @@ AirPort_RTW88 uses the Linux `rtw88` driver as its hardware backend, with macOS 
 
 ## Current Status
 
-AirPort_RTW88 1.0.0 provides functional native Wi-Fi connectivity through macOS AirPort.
+AirPort_RTW88 1.0.1 is a maintenance and hardware-compatibility release built on the working native AirPort path from 1.0.0.
 
 Currently working:
 
 - Native AirPort/IO80211 interface
-- Wi-Fi network scanning
+- Wi-Fi network scanning, including fixes for overlapping CoreWiFi scans
 - 2.4 GHz networks
 - 5 GHz networks
 - Association and connection through the native macOS Wi-Fi interface
 - Open networks
 - WPA/WPA2 networks
-- Native Apple RSN/EAPOL key-management integration
+- WPA/WPA2 association using the driver's internal RSN/EAPOL path
 - Normal IP network traffic after association
+- Expanded PCIe device-ID coverage for supported RTL88xx families
+
+### Experimental development code
+
+The tree also contains ongoing AWDL/P2P work used for AirDrop/Continuity research. It is **not a supported feature of the 1.0.1 release** and should be considered incomplete.
 
 ### Not Currently Supported
 
-- AWDL
-- AirDrop and other features that depend on AWDL
-- USB Realtek Wi-Fi adapters
-- SDIO Realtek Wi-Fi adapters
-
-AWDL support is planned for a future release.
+- Reliable/full AWDL channel scheduling and availability windows
+- Guaranteed AirDrop/Handoff/Universal Clipboard interoperability
+- USB Realtek Wi-Fi adapters (intentionally excluded from the build)
+- SDIO Realtek Wi-Fi adapters (intentionally excluded from the build)
 
 ## Supported Hardware
 
@@ -37,20 +40,20 @@ AWDL support is planned for a future release.
 
 - **RTL8822BE** — tested and confirmed working
 
-### Theoretically Supported Hardware
+### PCIe Family Coverage
 
-The following RTL88xx PCIe chipsets are supported by the underlying `rtw88` implementation and their required firmware files are included with AirPort_RTW88:
+The AirPort target now matches only PCIe devices. The following RTL88xx PCIe chipsets have a device-ID → `rtw_chip_info` mapping in `RTW88IEEE80211.cpp`, an IOKit PCI personality, and their required firmware blobs embedded in AirPort_RTW88:
 
-- **RTL8822CE**
-- **RTL8821CE**
-- **RTL8812AE**
-- **RTL8814AE**
+- **RTL8822BE** — `10EC:B822` (tested)
+- **RTL8822CE** — `10EC:C822`, `10EC:C82F`
+- **RTL8821CE** — `10EC:C821`, `10EC:B821`
+- **RTL8821AE** — `10EC:8821`
+- **RTL8812AE** — `10EC:8812`
+- **RTL8814AE** — `10EC:8813`
 
-These chipsets have not yet been physically tested with AirPort_RTW88. However, they are expected to work due to their existing `rtw88` support and included firmware.
+Only RTL8822BE has been physically validated so far. The other PCIe IDs are enabled for field testing because the project contains their chip core/hw-spec mapping and firmware. They must remain marked **experimental/unverified** until tested on real hardware.
 
-If you own one of these adapters, testing and feedback are welcome.
-
-> **Note:** USB and SDIO variants are not supported and are not currently planned to be supported.
+> **PCIe only:** USB and SDIO transports/frontends are intentionally not compiled into the AirPort target. Upstream source files may remain in the vendored `rtw88-stable` tree, but they are not part of the built kext.
 
 ## Building
 
@@ -152,10 +155,11 @@ If the adapter is not detected, verify that:
 
 ## Project Structure
 
-AirPort_RTW88 consists of two main layers:
+AirPort_RTW88 consists of three main layers:
 
 - The ported Linux `rtw88` hardware/PHY/MAC implementation
-- The macOS AirPort/IO80211 integration layer
+- The macOS AirPort/IO80211 STA integration layer
+- The internal `RTW88AWDLManager` + virtual-interface layer used for AWDL/P2P bring-up
 
 The macOS layer exposes the Realtek hardware as a native Wi-Fi interface instead of presenting it as an Ethernet adapter.
 
@@ -163,9 +167,9 @@ Some internal class names retain the `AirportRTW88` naming used during developme
 
 ## Known Limitations
 
-AirPort_RTW88 1.0.0 is the first public release and should still be considered experimental software.
+AirPort_RTW88 1.0.1 is an experimental feature release built on the working 1.0.0 STA path.
 
-AWDL/P2P functionality is not currently operational. As a result, services that depend on AWDL, such as AirDrop, are not supported in this release.
+AWDL/P2P and AirDrop support are partial. The driver now contains the IO80211 virtual-interface bridge, verified AWDL control payloads and native management/action-frame transport, but off-channel scheduling and full interoperability still require hardware testing and follow-up fixes.
 
 Support for RTL88xx models other than the RTL8822BE is currently unverified due to lack of physical hardware testing.
 
