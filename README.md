@@ -120,9 +120,13 @@ The AirPort_RTW88 release package contains separate configurations for Ventura a
 
 Sonoma, Sequoia and Tahoe require additional OpenCore configuration for the Legacy networking stack.
 
-**[INSERT KERNEL -> ADD OCAT SCREENSHOT]**
+### Kernel -> Add
 
-**[INSERT KERNEL -> BLOCK OCAT SCREENSHOT]**
+![Kernel Add configuration](Images/Kernel-Add.png)
+
+### Kernel -> Block
+
+![Kernel Block configuration](Images/Kernel-Block.png)
 
 Follow the configuration shown in the screenshots carefully before rebooting.
 
