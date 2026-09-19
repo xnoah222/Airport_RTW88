@@ -14,9 +14,9 @@ AirPort_RTW88 uses the Linux `rtw88` driver as its hardware backend, with macOS 
 
 ## Current Status
 
-**Current release: AirPort_RTW88 1.0.2**
+Current release: **AirPort_RTW88 1.0.3**
 
-Version 1.0.2 is a hardware compatibility, network stability and modern macOS compatibility release.
+Version 1.0.3 is primarily a **macOS Tahoe compatibility and stability release**.
 
 Currently working:
 
@@ -34,11 +34,57 @@ Currently working:
 - macOS Ventura 13.7.7+
 - macOS Sonoma 14.4+ through Tahoe 26 using the Legacy IO80211 stack
 
+---
+
+# What's New in AirPort_RTW88 1.0.3
+
+AirPort_RTW88 1.0.3 focuses primarily on improving operation under **macOS Tahoe 26**.
+
+No major new features are introduced in this release. Instead, 1.0.3 addresses Tahoe-specific issues discovered after the previous release.
+
+## macOS Tahoe Improvements
+
+### Signal Stability
+
+Fixed signal degradation issues affecting AirPort_RTW88 under macOS Tahoe.
+
+Signal handling and connection reliability have been improved to provide more consistent Wi-Fi operation.
+
+### Wi-Fi Scanning
+
+Improved network scanning behavior on macOS Tahoe.
+
+This fixes issues where nearby networks could fail to appear consistently or scanning could behave unreliably.
+
+### Connection Stability
+
+Improved overall Wi-Fi stability under macOS Tahoe, including fixes to connection and network handling through the Legacy IO80211 stack.
+
+### General Tahoe Compatibility
+
+Additional compatibility fixes and adjustments have been made for the networking behavior introduced with macOS Tahoe 26.
+
+These changes are specific to Tahoe and do not significantly alter the existing Ventura, Sonoma or Sequoia implementations.
+
+---
+
+## Previous Release — AirPort_RTW88 1.0.2
+
+Version 1.0.2 introduced:
+
+- RTL8822CE support
+- RTL8821CE support
+- PCI compatibility improvements
+- Network degradation fixes
+- Improved Sonoma–Tahoe Legacy IO80211 compatibility
+- Network association fixes
+
+
 ### Experimental development code
 
 The source tree contains ongoing AWDL/P2P development used for AirDrop and Continuity research.
 
-Although AWDL-related classes, files and infrastructure are present in the source code, **AWDL is not functional in AirPort_RTW88 1.0.2**.
+Although AWDL-related classes, files and infrastructure are present in the source code, **AWDL is not functional in AirPort_RTW88 1.0.3*.
 
 The following features should therefore be considered unsupported:
 
@@ -54,7 +100,7 @@ Functional AWDL/AirDrop support is planned for a future release.
 
 ## Supported Hardware
 
-AirPort_RTW88 1.0.2 officially supports:
+AirPort_RTW88 1.0.3 officially supports:
 
 | Chipset | PCI Device IDs | Status |
 | --- | --- | --- |
@@ -131,29 +177,6 @@ Sonoma, Sequoia and Tahoe require additional OpenCore configuration for the Lega
 Follow the configuration shown in the screenshots carefully before rebooting.
 
 ---
-
-# What's New in AirPort_RTW88 1.0.2
-
-## RTL8822CE and RTL8821CE Support
-
-AirPort_RTW88 is no longer limited to RTL8822BE.
-
-Version 1.0.2 adds working support for:
-
-- RTL8822CE
-- RTL8821CE
-
-PCI compatibility, device initialization and driver handling for these chipsets have been corrected.
-
-Together with RTL8822BE, these are now the three officially supported AirPort_RTW88 chipsets.
-
-## Network Degradation Fix — Ventura through Tahoe
-
-Version 1.0.2 fixes an important issue that could cause network performance to progressively degrade during use.
-
-Previously, a connection could initially operate normally but gradually lose throughput and stability, particularly during sustained or heavier network traffic.
-
-Traffic handling and connection stability have been improved across the entire supported macOS range:
 
 **Ventura → Sonoma → Sequoia → Tahoe**
 
@@ -347,7 +370,7 @@ AWDL-related code in the source tree should not be interpreted as functional AWD
 
 ## Known Limitations
 
-AirPort_RTW88 1.0.2 currently has the following limitations:
+AirPort_RTW88 1.0.3 currently has the following limitations:
 
 - AWDL is not functional
 - AirDrop is not functional
@@ -372,7 +395,7 @@ When opening an issue, please provide:
 - Ventura or Legacy Stack configuration
 - Relevant AirPort_RTW88 / `rtw88` kernel logs
 
-Please do not report AWDL/AirDrop as a 1.0.2 Wi-Fi connectivity bug. AWDL is currently under development.
+Please do not report AWDL/AirDrop as a 1.0.3 Wi-Fi connectivity bug. AWDL is currently under development.
 
 Reports involving unsupported RTL88xx hardware may not be actionable.
 
