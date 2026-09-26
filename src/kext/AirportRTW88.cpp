@@ -17,6 +17,15 @@ extern "C" void rtw88_trigger_interrupt(void);  /* esta si es la unica con exter
 
 OSDefineMetaClassAndStructors(AirportRTW88, IO80211Controller)
 
+static constexpr unsigned int kRTW88TxStallAvail = 96;
+static constexpr unsigned int kRTW88TxResumeAvail = 160;
+
+static void rtw88_tx_resume_trampoline()
+{
+    if (g_pci_dev_instance)
+        g_pci_dev_instance->resumeTxIfStalled();
+}
+
 bool AirportRTW88::init(OSDictionary *props)
 {
     return super::init(props);
@@ -149,11 +158,7 @@ bool AirportRTW88::start(IOService *provider)
     }
     _netifAttached = true;
 
-    /* NOTA: se omite rtw88_set_tx_resume_cb -- esa optimizacion depende de
-     * _txQueue (IOBasicOutputQueue), especifico de IOEthernetController.
-     * AirportRTW88 usa la cola de salida de IO80211Controller; sin esto
-     * el peor caso es que un TX stall se resuelva por timeout natural
-     * en vez de al instante, no rompe funcionalidad basica. */
+    rtw88_set_tx_resume_cb(rtw88_tx_resume_trampoline);
     if (_intrSrc) _intrSrc->enable();
 
     /* AirportItlwm publishes a valid-but-not-yet-associated link, then both
@@ -327,9 +332,8 @@ void AirportRTW88::syncBounceForCpu(IOPhysicalAddress dma, size_t size)
 
 void AirportRTW88::resumeTxIfStalled()
 {
-    /* AirportRTW88 no usa IOBasicOutputQueue (eso es de IOEthernetController);
-     * IO80211Controller maneja su propia cola. Sin efecto propio por ahora --
-     * peor caso, un stall se resuelve por timeout natural en vez de al instante. */
+    if (_txStalled && rtw88_be_tx_avail() >= kRTW88TxResumeAvail)
+        _txStalled = false;
 }
 
 void AirportRTW88::drainPendingFree()
@@ -368,6 +372,8 @@ void AirportRTW88::releaseDMAEntries()
 
 void AirportRTW88::teardown()
 {
+    rtw88_set_tx_resume_cb(nullptr);
+
     if (_intrSrc)
         _intrSrc->disable();
 
@@ -563,7 +569,15 @@ UInt32 AirportRTW88::getFeatures() const
 
 UInt32 AirportRTW88::outputPacket(mbuf_t m, void *param)
 {
-    if (_ieee80211) return _ieee80211->outputPacket(m);
+    drainPendingFree();
+    if (_ieee80211) {
+        if (rtw88_be_tx_avail() < kRTW88TxStallAvail) {
+            _txStalled = true;
+            return kIOReturnOutputStall;
+        }
+        _txStalled = false;
+        return _ieee80211->outputPacket(m);
+    }
     if (m) mbuf_freem(m);
     return kIOReturnOutputDropped;
 }
@@ -1673,4 +1687,3 @@ void AirportRTW88::rtw88Event(RTW88Event ev, void *data)
     default: break;
     }
 }
-

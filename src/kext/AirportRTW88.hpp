@@ -140,6 +140,7 @@ private:
     IOEthernetAddress       _macAddr;
     bool                    _scanInProgress = false;
     bool                    _linkUp = false;
+    volatile bool           _txStalled = false;
 
     /* Acceso real a hardware -- antes esto se pasaba como nullptr a
      * RTW88IEEE80211::create(), causando "pci bus timeout" en cada
