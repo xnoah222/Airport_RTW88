@@ -1,175 +1,333 @@
-AirPort_RTW88 Project License
+Realtek AirPort Family Project License
 Version 1.0
 
-Copyright (c) 2026 AirPort_RTW88 contributors.
-All rights reserved except as expressly granted by this license.
+Copyright (c) 2026 the applicable copyright holders.
 
-1. Scope
+Permission is granted only under the terms stated in this License.
 
-This license applies only to original portions of the AirPort_RTW88
-project for which the applicable copyright holder has the authority
-to grant rights under this license ("Covered Code").
+1. PURPOSE AND SCOPE
 
-This license does not relicense, supersede, replace, or modify the
-license terms of any third-party software incorporated into,
-distributed with, derived from, or used by the project.
+This License governs original work created specifically for the following
+projects:
 
-Third-party components, including code originating from projects such
-as Linux/rtw88, AirportItlwm, Feixiao, or other upstream projects,
-remain subject to their respective copyright notices and license terms.
+    AirPort_RTW88
+    Realtek88LegacyAirport
 
-Where a file or portion of a file contains third-party material, the
-applicable third-party license continues to govern that material.
+and any other project that explicitly states that it is covered by this
+License.
 
-2. Permission
+Collectively, these are referred to as the "Covered Projects".
 
-Subject to the conditions of this license, permission is granted,
-free of charge, to any person obtaining a copy of the Covered Code to:
+This License applies only to copyrightable material for which the
+applicable copyright holder has authority to grant rights under this
+License.
 
-(a) use and run the Covered Code for any purpose;
+Such material is referred to as the "Original Project Work".
 
-(b) study and modify the Covered Code;
+Original Project Work may include, where applicable:
 
-(c) copy and redistribute the Covered Code;
+- original source code;
+- original integration and interoperability code;
+- original glue code;
+- original hardware or operating-system adaptation code;
+- original fixes and enhancements;
+- original build infrastructure and build logic;
+- original scripts and tooling;
+- original packaging and distribution structure;
+- original documentation;
+- original project-specific configuration;
+- original selection, coordination, and arrangement of project material;
+- and other original material created specifically as part of a
+  Covered Project.
 
-(d) distribute modified versions of the Covered Code; and
+2. THIRD-PARTY MATERIAL
 
-(e) sell copies of, or charge a fee for distributing, the Covered Code
-or modified versions of it.
+This License does not relicense, supersede, replace, restrict, or alter
+the license of any third-party material.
 
-These permissions apply to source and compiled forms.
+Third-party material includes, without limitation, code or other material
+originating from projects such as:
 
-3. Preservation of Notices
+- Linux and rtw88;
+- Feixiao;
+- AirportItlwm;
+- OpenAWDL or OWL;
+- Apple;
+- MacKernelSDK;
+- firmware vendors;
+- or any other external project or copyright holder.
 
-Redistributions of the Covered Code must preserve this license,
-applicable copyright notices, attribution notices, and all license
-notices belonging to third-party components.
+All such material remains governed exclusively by its applicable
+copyright notices and licenses.
 
-No third-party copyright or license notice may be removed or altered
-in a manner inconsistent with the terms under which that third-party
-material was provided.
+Nothing in this License claims ownership of third-party material.
 
-4. Modified Versions
+Where Original Project Work is combined with, modifies, extends, or is
+distributed together with third-party material, the third-party license
+continues to govern that third-party material.
 
-A version is considered modified when changes are made to the Covered
-Code that were not published or expressly approved for inclusion in
-the official AirPort_RTW88 project by its maintainer.
+If the applicable third-party license requires original modifications to
+a particular file or derivative work to be distributed under that
+third-party license, that requirement takes priority for that material.
 
-Modified versions may be distributed, including commercially, only
-under the following conditions:
+3. PERMISSION
 
-(a) the modified version must use a project name that is clearly
-different from "AirPort_RTW88";
+Subject to the conditions of this License, permission is granted,
+free of charge, to any person obtaining a copy of the Original Project
+Work to:
 
-(b) the modified version must not use "AirPort_RTW88" as its primary
-project, product, repository, package, driver, distribution, or release
-name;
+(a) use it for any purpose;
 
-(c) the modified version must not be represented as an official release,
-official continuation, official successor, or official new version of
-AirPort_RTW88;
+(b) study it;
 
-(d) the modified version must clearly state that it is a modified or
-derived version when describing its relationship to AirPort_RTW88;
+(c) copy it;
 
-(e) references such as "based on AirPort_RTW88", "derived from
-AirPort_RTW88", or equivalent truthful statements describing origin
-are permitted; and
+(d) modify it;
 
-(f) the modified version must not use version numbering, presentation,
-or branding in a manner that reasonably represents the modified version
-as an official AirPort_RTW88 release.
+(e) redistribute it;
 
-Changing only the project name, copyright notice, version number,
-repository location, package metadata, or branding does not make the
-underlying Covered Code cease to be subject to this license.
+(f) create derivative works from it;
 
-5. Unmodified Redistribution
+(g) include it in other software;
 
-Verbatim, unmodified copies of an official AirPort_RTW88 release may
-retain the AirPort_RTW88 name, provided that:
+(h) distribute compiled versions of it; and
 
-(a) the copy is clearly identified as an unmodified copy;
+(i) sell copies of it or charge fees for its distribution or support.
 
-(b) all copyright, attribution, and license notices are preserved; and
+Commercial use is expressly permitted.
 
-(c) the distributor does not claim to be the author, official
-maintainer, or official source of AirPort_RTW88.
+4. PRESERVATION OF NOTICES
 
-6. Contributions to the Official Project
+Redistributions of Original Project Work must preserve:
 
-Changes submitted to and accepted into the official AirPort_RTW88
-project may be distributed by the official project under the
-AirPort_RTW88 name.
+(a) this License;
 
-Submission of a contribution does not alter the licensing of
-third-party material contained in that contribution.
+(b) applicable copyright notices;
 
-Contributors must have the necessary rights to submit their
-contributions under the applicable terms.
+(c) attribution notices; and
 
-7. Project Identity
+(d) all copyright and license notices belonging to third-party
+    material.
 
-This license grants copyright permissions for the Covered Code.
+Third-party notices must not be removed, replaced, or presented as
+though the corresponding third-party material originated from the
+Covered Projects.
 
-It does not grant permission to impersonate the official AirPort_RTW88
-project, its maintainers, or its official distribution channels.
+5. MODIFIED DISTRIBUTIONS
 
-Nothing in this license grants trademark rights that the copyright
-holder does not possess.
+A "Modified Distribution" is any publicly distributed version of a
+Covered Project that incorporates Original Project Work and contains
+changes that have not been published or expressly accepted as part of
+an official release of the applicable Covered Project.
 
-8. No Additional Restrictions on Independent Works
+A Modified Distribution may be used, modified, redistributed, or sold,
+but it must comply with all of the following conditions.
 
-This license does not apply merely because independent software
-interoperates with, communicates with, loads, calls, or is distributed
-alongside AirPort_RTW88.
+5.1 DIFFERENT PROJECT NAME
 
-Independent works remain subject to their own applicable licenses.
+A Modified Distribution must use a project name clearly distinct from:
 
-9. Third-Party License Priority
+    AirPort_RTW88
 
-If Covered Code and third-party code are combined in a way that causes
-a third-party license to impose additional or conflicting requirements,
-the applicable third-party license requirements must be followed.
+and:
 
-Nothing in this license grants permission to violate or disregard the
-license terms of third-party software.
+    Realtek88LegacyAirport
 
-If a person cannot simultaneously comply with this license and an
-applicable third-party license for a particular distribution, this
-license does not grant permission for that distribution.
+as applicable.
 
-10. Disclaimer of Warranty
+The name of a Covered Project must not be used as the primary name of
+a modified project, repository, package, product, driver, distribution,
+or release.
 
-THE COVERED CODE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
-NONINFRINGEMENT.
+5.2 NO FALSE OFFICIAL CONTINUATION
+
+A Modified Distribution must not be represented as:
+
+- an official release of a Covered Project;
+- an official continuation of a Covered Project;
+- an official successor to a Covered Project;
+- a new official version of a Covered Project;
+- or the official repository or distribution source for a Covered
+  Project.
+
+5.3 VERSION NUMBERS AND PRESENTATION
+
+A Modified Distribution must not use version numbering, repository
+presentation, release naming, package metadata, or branding in a manner
+that reasonably presents it as an official release or continuation of
+a Covered Project.
+
+For example, a modified fork of AirPort_RTW88 must not simply continue
+the official AirPort_RTW88 release sequence while presenting itself as
+AirPort_RTW88.
+
+The same requirement applies to Realtek88LegacyAirport.
+
+5.4 ATTRIBUTION IS ALLOWED
+
+Truthful attribution is permitted and encouraged.
+
+A Modified Distribution may use statements such as:
+
+    "Based on AirPort_RTW88"
+
+    "Fork of AirPort_RTW88"
+
+    "Derived from AirPort_RTW88"
+
+    "Based on Realtek88LegacyAirport"
+
+    "Fork of Realtek88LegacyAirport"
+
+or equivalent wording that accurately describes the origin of the work.
+
+Such attribution does not permit the modified project itself to use the
+Covered Project's name as its own primary identity.
+
+5.5 RENAMING ALONE DOES NOT REMOVE THESE OBLIGATIONS
+
+Changing only the project name, repository name, package metadata,
+version number, copyright notice, or branding does not cause Original
+Project Work to cease being governed by this License.
+
+The permissions and obligations of this License remain applicable to
+Original Project Work contained in the Modified Distribution.
+
+6. UNMODIFIED REDISTRIBUTION
+
+A verbatim and unmodified copy of an official Covered Project release
+may retain its original project name.
+
+Such redistribution is permitted provided that:
+
+(a) it is clearly identified as an unmodified copy;
+
+(b) this License and all applicable notices are preserved;
+
+(c) the distributor does not claim authorship of work they did not
+    create;
+
+(d) the distributor does not claim to be the official maintainer; and
+
+(e) the distributor does not falsely represent their repository or
+    distribution channel as the official source of the Covered Project.
+
+7. OFFICIAL PROJECT RELEASES
+
+For purposes of this License, an "Official Release" is a version
+published or expressly approved for publication by the maintainer or
+maintainers authorized to publish releases under the corresponding
+Covered Project name.
+
+Changes accepted into an Official Release may be distributed as part of
+that Covered Project under its official name.
+
+Nothing in this section changes the license of third-party material.
+
+8. CONTRIBUTIONS
+
+A contributor submitting Original Project Work to a Covered Project
+must have the necessary rights to submit that contribution.
+
+Acceptance of a contribution into a Covered Project does not transfer
+ownership of third-party material and does not alter any applicable
+third-party license.
+
+Where a contribution is subject to another license because it modifies
+or derives from third-party material, that other license remains
+applicable.
+
+9. PROJECT IDENTITY
+
+This License grants copyright permissions only to the extent that the
+applicable copyright holder is legally able to grant them.
+
+It does not grant permission to impersonate:
+
+- AirPort_RTW88;
+- Realtek88LegacyAirport;
+- the Realtek AirPort Family project;
+- their maintainers;
+- or their official distribution channels.
+
+No permission is granted to falsely claim that a Modified Distribution
+is maintained, approved, endorsed, or released by the official Covered
+Project.
+
+Nothing in this License creates or asserts trademark rights that do not
+otherwise exist.
+
+10. INDEPENDENT IMPLEMENTATIONS
+
+Nothing in this License restricts any person from independently creating
+software that performs the same or similar functions.
+
+A person may independently use Linux/rtw88, Feixiao, AirportItlwm,
+Apple interfaces, publicly documented behavior, or any other material
+available to them under its applicable terms.
+
+Independent work that does not incorporate Original Project Work is not
+subject to this License merely because it serves the same purpose or
+supports the same hardware.
+
+11. THIRD-PARTY LICENSE PRIORITY
+
+Nothing in this License grants permission to violate a third-party
+license.
+
+If a particular file, component, or derivative work is required to be
+distributed under GPL, BSD, APSL, or another applicable third-party
+license, that requirement remains fully effective.
+
+This License applies only to Original Project Work to the extent that
+its copyright holder has the legal authority to license that work under
+these terms.
+
+If compliance with this License and an applicable third-party license
+is impossible for a particular distribution, this License does not
+grant permission for that distribution.
+
+12. DISCLAIMER OF WARRANTY
+
+THE ORIGINAL PROJECT WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
 IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR
-ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN
-CONNECTION WITH THE COVERED CODE OR THE USE OR OTHER DEALINGS IN THE
-COVERED CODE.
+ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION
+WITH THE ORIGINAL PROJECT WORK OR THE USE OR OTHER DEALINGS IN THE
+ORIGINAL PROJECT WORK.
 
-11. Acceptance and Termination
+13. TERMINATION
 
-By exercising permissions granted under this license, you accept its
-conditions.
+Rights granted under this License terminate automatically upon a
+material violation of its conditions.
 
-Your rights under this license terminate automatically if you
-materially violate its conditions.
+If the violation is corrected within thirty (30) days after the
+violating party becomes aware of it, the rights granted by this License
+are provisionally reinstated, unless applicable law or another valid
+agreement provides otherwise.
 
-If you cease the violation and correct all reasonably correctable
-effects of the violation within 30 days after becoming aware of it,
-your rights under this license are reinstated provisionally unless and
-until the copyright holder provides notice otherwise.
+Termination under this License affects only rights granted under this
+License.
 
-12. License Identification
+It does not terminate or modify rights independently granted under a
+third-party license.
 
-For source files governed exclusively by this license, the following
-identifier may be used:
+14. LICENSE IDENTIFICATION
 
-SPDX-License-Identifier: LicenseRef-AirPort-RTW88-1.0
+This is a custom project license and is not represented as an
+OSI-approved standard license or as a license from the SPDX License
+List.
 
-This identifier refers to the complete text of the AirPort_RTW88
-Project License Version 1.0 distributed with this project.
+For files governed exclusively by this License, the following custom
+SPDX-style identifier may be used:
+
+    SPDX-License-Identifier: LicenseRef-Realtek-AirPort-Family-1.0
+
+This identifier refers to the complete text of:
+
+    Realtek AirPort Family Project License, Version 1.0
+
+distributed with the Covered Projects.
